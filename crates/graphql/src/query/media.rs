@@ -199,6 +199,7 @@ impl MediaQuery {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
 		let user_id = user.id.clone();
+		// FIXME(sea-orm): I think this might be wrong, see https://github.com/SeaQL/sea-orm/issues/2407
 		let query = media::ModelWithMetadata::find_for_user(user)
 			.join_rev(
 				JoinType::InnerJoin,
