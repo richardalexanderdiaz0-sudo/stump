@@ -89,7 +89,10 @@ export const buildSchema = (
 	z.object({
 		convertRarToZip: z.boolean().default(false),
 		defaultReadingDir: z.enum(['LTR', 'RTL']).default('LTR').optional(),
-		defaultReadingImageScaleFit: z.enum(['HEIGHT', 'WIDTH', 'NONE']).default('HEIGHT').optional(),
+		defaultReadingImageScaleFit: z
+			.enum(['AUTO', 'HEIGHT', 'WIDTH', 'NONE'])
+			.default('HEIGHT')
+			.optional(),
 		defaultReadingMode: z
 			.enum(['PAGED', 'CONTINUOUS_VERTICAL', 'CONTINUOUS_HORIZONTAL'])
 			.default('PAGED')

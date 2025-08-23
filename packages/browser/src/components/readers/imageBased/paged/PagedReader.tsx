@@ -78,6 +78,8 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 			let startX = 0
 			let startY = 0
 			const handlePointerDown = (event: PointerEvent) => {
+				if (event.button === 2) return
+
 				startX = event.clientX
 				startY = event.clientY
 
@@ -165,6 +167,21 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	}, [pageSetWidth, innerWidth, isMobile])
 
 	/**
+	 * Record previous scroll position to restore if backtracked within 3 seconds
+	 */
+	const scrollPositionMap = useRef(new Map<number, { scrollTop: number; timestamp: number }>())
+
+	useEffect(() => {
+		const scrollElement = pageSetRef.current?.parentElement?.parentElement?.parentElement
+		const storedScrollState = scrollPositionMap.current.get(currentSetIdx)
+		let scrollTop = 0
+		if (storedScrollState && Date.now() - storedScrollState.timestamp < 3000) {
+			scrollTop = storedScrollState.scrollTop
+		}
+		scrollElement?.scrollTo({ top: scrollTop, behavior: 'smooth' })
+	}, [currentSetIdx])
+
+	/**
 	 * A callback to actually change the page. This should not be called directly, but rather
 	 * through the `handleLeftwardPageChange` and `handleRightwardPageChange` callbacks to
 	 * ensure that the reading direction is respected.
@@ -173,11 +190,15 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	 */
 	const doChangePage = useCallback(
 		(newPage: number) => {
+			const scrollElement = pageSetRef.current?.parentElement?.parentElement?.parentElement
+			const scrollTop = scrollElement?.scrollTop ?? 0
+			scrollPositionMap.current.set(currentSetIdx, { scrollTop: scrollTop, timestamp: Date.now() })
+
 			if (newPage <= book.pages && newPage > 0) {
 				onPageChange(newPage)
 			}
 		},
-		[book.pages, onPageChange],
+		[book.pages, onPageChange, currentSetIdx],
 	)
 
 	/**
@@ -251,7 +272,15 @@ function PagedReader({ currentPage, onPageChange }: PagedReaderProps) {
 	useHotkeys('right, left, space, escape', (_, handler) => hotKeyHandler(handler))
 
 	return (
-		<div className="relative flex h-full w-full items-center justify-center">
+		<div
+			style={{
+				display: 'flex',
+				justifyContent: 'center',
+				margin: 'auto',
+				width: '100vw',
+				position: 'relative',
+			}}
+		>
 			{!showToolBar && tapSidesToNavigate && (
 				<SideBarControl
 					fixed={fixSideNavigation}
@@ -300,9 +329,9 @@ function SideBarControl({ onClick, position, fixed }: SideBarControlProps) {
 	return (
 		<div
 			className={clsx(
-				'z-50 h-[300%] shrink-0 border border-transparent transition-all duration-300',
+				'z-50 h-full shrink-0 border border-transparent transition-all duration-300',
 				'active:border-edge-subtle active:bg-background-surface active:bg-opacity-50',
-				fixed ? 'fixed w-[10%]' : 'relative mx-[-3%] flex flex-1 flex-grow',
+				fixed ? 'absolute w-[10%]' : 'relative mx-[-3%] flex flex-1 flex-grow',
 				{ 'right-0': position === 'right' },
 				{ 'left-0': position === 'left' },
 			)}

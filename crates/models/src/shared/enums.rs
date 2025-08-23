@@ -359,6 +359,7 @@ pub enum ReadingImageScaleFit {
 	#[default]
 	Height,
 	Width,
+	Auto,
 	#[serde(alias = "ORIGINAL")]
 	None,
 }

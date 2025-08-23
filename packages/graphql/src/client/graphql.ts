@@ -2285,6 +2285,7 @@ export enum ReadingDirection {
 
 /** The different ways an image may be scaled to fit a reader's viewport */
 export enum ReadingImageScaleFit {
+  Auto = 'AUTO',
   Height = 'HEIGHT',
   None = 'NONE',
   Width = 'WIDTH'
