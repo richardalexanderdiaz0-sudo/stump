@@ -25,6 +25,8 @@ import EpubReaderContainer from './EpubReaderContainer'
 import { applyTheme, stumpDark } from './themes'
 
 // TODO: Fix all lifecycle lints
+// TODO: Consider a total re-write or at least thorough review of this component, it was written a while
+// ago and I feel like it could be improved
 // TODO: Support elapsed time tracking!!!!
 
 // NOTE: http://epubjs.org/documentation/0.3/ for epubjs documentation overview
@@ -269,6 +271,7 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 		[theme],
 	)
 
+	const didRenderToScreen = useRef(false)
 	/**
 	 * This effect is responsible for rendering the epub to the screen. It will only run once
 	 * when the book is has been loaded. It will also set the initial location and theme
@@ -278,7 +281,8 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 		if (!book || !ref.current) return
 
 		book.ready.then(() => {
-			if (book.spine) {
+			if (book.spine && !didRenderToScreen.current) {
+				didRenderToScreen.current = true
 				const defaultLoc = book.rendition?.location?.start?.cfi
 
 				const boundingClient = ref.current?.getBoundingClientRect()
