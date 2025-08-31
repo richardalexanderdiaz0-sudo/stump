@@ -7,6 +7,7 @@ ATTACH DATABASE '/replace/with/full/path/to/stump-before-migration.db' as 'backu
 -- 2. run the following SQL to copy the data from the old database to the new database:
 BEGIN;
 PRAGMA foreign_keys = OFF;
+PRAGMA defer_foreign_keys = ON;
 
 -- Libraries which users cannot access via explicit join record
 INSERT INTO "library_exclusions"("library_id", "user_id")
@@ -641,6 +642,7 @@ SELECT "public_url",
 FROM backup."server_config";
 
 PRAGMA foreign_keys = ON;
+PRAGMA defer_foreign_keys = OFF;
 PRAGMA foreign_key_check;
 COMMIT;
 
