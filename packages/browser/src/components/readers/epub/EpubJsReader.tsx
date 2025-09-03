@@ -1,10 +1,4 @@
-import {
-	BookPreferences,
-	queryClient,
-	useGraphQLMutation,
-	useSDK,
-	useSuspenseGraphQL,
-} from '@stump/client'
+import { queryClient, useGraphQLMutation, useSDK, useSuspenseGraphQL } from '@stump/client'
 import {
 	Bookmark,
 	EpubJsReaderQuery,
@@ -198,9 +192,9 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	const [currentLocation, setCurrentLocation] = useState<EpubLocationState>()
 	const [isInitialLoading, setIsInitialLoading] = useState(true)
 
-	const { bookPreferences } = useBookPreferences({
-		book: ebook.media,
-	})
+	const {
+		bookPreferences: { fontSize, lineHeight, fontFamily, readingMode },
+	} = useBookPreferences({ book: ebook.media })
 
 	const client = useQueryClient()
 	const { mutate } = useGraphQLMutation(mutation, {
@@ -272,19 +266,6 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 
 		return { chapter: position, chapterName: name, sectionIndex: sectionIndex }
 	}, [book, currentLocation])
-
-	/**
-	 * A function for focusing the iframe in the epub reader. This will be used to ensure
-	 * the iframe is focused whenever the reader is loaded and/or the location changes.
-	 */
-	const focusIframe = () => {
-		const iframe = ref.current?.querySelector('iframe')
-		if (iframe) {
-			iframe.focus()
-		} else {
-			console.warn('Failed to find iframe in epub reader')
-		}
-	}
 
 	const computeNaiveProgress = useCallback(
 		({ start }: EpubLocationState) => {
@@ -364,7 +345,6 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 				return
 			}
 			setCurrentLocation(changeState)
-			focusIframe()
 			computeProgress(changeState)
 		},
 		[computeProgress],
@@ -398,12 +378,7 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	 * @param preferences The epub reader preferences
 	 */
 	const applyEpubPreferences = useCallback(
-		(
-			rendition: Rendition,
-			preferences: BookPreferences,
-			lang: string,
-			pageFlipDirection: string,
-		) => {
+		(rendition: Rendition, lang: string, pageFlipDirection: string) => {
 			// ja should be ltr no matter what because text is always written "forwards"
 			const isJaWithPageFlipRtl =
 				(lang === 'ja' || lang === 'zh-TW' || lang === 'zh-HK') && pageFlipDirection === 'rtl'
@@ -430,14 +405,6 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 				rendition.themes.register('stump-light', {})
 				rendition.themes.select('stump-light')
 			}
-			rendition.direction(preferences.readingDirection === 'RTL' ? 'rtl' : 'ltr')
-			// Set flow based on reading mode
-			if (preferences.readingMode === ReadingMode.ContinuousVertical) {
-				rendition.flow('scrolled-doc')
-			} else {
-				// Default to paginated for 'paged' mode
-				rendition.flow('paginated')
-			}
 		},
 		[theme],
 	)
@@ -451,6 +418,7 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 					'line-height': `${lineHeight} !important`,
 					'font-family': `${toFamilyName(fontFamily as SupportedFont)} !important`,
 				},
+				img: { 'max-width': '100% !important' },
 			}
 
 			const contents = rendition.getContents()
@@ -510,7 +478,12 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 					await generateLocations(book)
 				}
 
-				const rendition_ = book.renderTo(ref.current!, { width, height })
+				const rendition_ = book.renderTo(ref.current!, {
+					width: width,
+					height: height,
+					// enable the following line to allow rendition?.on('keydown', handleKeyDown) to work for Safari
+					// allowScriptedContent: true,
+				})
 
 				rendition_.hooks.content.register(() => {
 					injectFontStylesheet(rendition_)
@@ -523,25 +496,10 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 
 				rendition_.on('relocated', handleLocationChange)
 
-				// This callback is used to change the page when a keydown event is received.
-				const keydown_callback = (event: KeyboardEvent) => {
-					// Check arrow keys
-					if (event.key == 'ArrowLeft') {
-						rendition_.prev()
-					}
-					if (event.key == 'ArrowRight') {
-						rendition_.next()
-					}
-				}
-				// The rendition fires keydown events when the epub page is in focus
-				rendition_.on('keydown', keydown_callback)
-				// When the epub page isn't in focus, the window fires them instead
-				window.addEventListener('keydown', keydown_callback)
-
 				const lang = book?.packaging?.metadata?.language
 				// @ts-expect-error: PackagingMetadataObject does have property 'direction'
 				const pageFlipDirection = book?.packaging?.metadata?.direction
-				applyEpubPreferences(rendition_, bookPreferences, lang, pageFlipDirection)
+				applyEpubPreferences(rendition_, lang, pageFlipDirection)
 
 				setRendition(rendition_)
 
@@ -560,12 +518,29 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 	}, [
 		book,
 		applyEpubPreferences,
-		bookPreferences,
+		readingMode,
 		handleLocationChange,
 		isIncognito,
 		ebook,
 		generateLocations,
 	])
+
+	/** This effect handles page turning via keyboard keys */
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'ArrowLeft') {
+				rendition?.prev()
+			} else if (event.key === 'ArrowRight') {
+				rendition?.next()
+			}
+		}
+		window.addEventListener('keydown', handleKeyDown, { capture: true })
+		rendition?.on('keydown', handleKeyDown)
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown, { capture: true })
+			rendition?.off('keydown', handleKeyDown)
+		}
+	}, [rendition])
 
 	// I'm hopeful this solves: https://github.com/stumpapp/stump/issues/726
 	// Honestly though epub.js is such a migraine that I'm OK just waiting until
@@ -605,7 +580,6 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 		}
 	}, [rendition])
 
-	const { fontSize, lineHeight, fontFamily } = bookPreferences
 	/**
 	 * This effect is responsible for updating the epub theme options whenever the epub
 	 * preferences change. It will only run when the epub preferences change and the
@@ -615,6 +589,13 @@ export default function EpubJsReader({ id, isIncognito }: EpubJsReaderProps) {
 		if (!rendition) return
 		updateEpubPreferences(rendition, fontSize, lineHeight, fontFamily)
 	}, [rendition, fontSize, fontFamily, lineHeight, updateEpubPreferences])
+
+	/* This effect updates the reading mode. This is separated because it causes flashing */
+	useEffect(() => {
+		if (!rendition) return
+		const flowStyle = readingMode === ReadingMode.ContinuousVertical ? 'scrolled' : 'paginated'
+		rendition.flow(flowStyle)
+	}, [rendition, readingMode])
 
 	/**
 	 * Invalidate the book query when a reader is unmounted so that the book overview
