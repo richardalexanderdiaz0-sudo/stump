@@ -2,18 +2,19 @@ import {
 	ARCHIVE_EXTENSION,
 	EBOOK_EXTENSION,
 	PDF_EXTENSION,
-	queryClient,
 	useGraphQLMutation,
 	useSDK,
 	useSuspenseGraphQL,
 } from '@stump/client'
-import { graphql } from '@stump/graphql'
+import { Dimension, graphql } from '@stump/graphql'
+import { useQueryClient } from '@tanstack/react-query'
 import { useKeepAwake } from 'expo-keep-awake'
 import * as NavigationBar from 'expo-navigation-bar'
 import { useLocalSearchParams } from 'expo-router'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 
 import { EpubJSReader, ImageBasedReader, UnsupportedReader } from '~/components/book/reader'
+import { NextInSeriesBookRef } from '~/components/book/reader/image/context'
 import { useAppState } from '~/lib/hooks'
 import { useReaderStore } from '~/stores'
 import { useBookPreferences, useBookTimer } from '~/stores/reader'
@@ -44,6 +45,15 @@ export const query = graphql(`
 					}
 				}
 			}
+			nextInSeries(pagination: { cursor: { limit: 1 } }) {
+				nodes {
+					id
+					name: resolvedName
+					thumbnail {
+						url
+					}
+				}
+			}
 		}
 	}
 `)
@@ -62,6 +72,7 @@ type Params = {
 
 export default function Screen() {
 	useKeepAwake()
+
 	const { id: bookID } = useLocalSearchParams<Params>()
 	const { sdk } = useSDK()
 	const {
@@ -69,10 +80,21 @@ export default function Screen() {
 	} = useSuspenseGraphQL(query, ['readBook', bookID], {
 		id: bookID,
 	})
+	const queryClient = useQueryClient()
 
 	if (!book) {
 		throw new Error('Book not found')
 	}
+
+	const nextInSeries = useMemo(() => {
+		const next = book.nextInSeries.nodes.at(0)
+		if (!next) return null
+		return {
+			id: next.id,
+			name: next.name,
+			thumbnailUrl: next.thumbnail.url,
+		} satisfies NextInSeriesBookRef
+	}, [book.nextInSeries.nodes])
 
 	const {
 		preferences: { preferSmallImages, trackElapsedTime },
@@ -198,12 +220,14 @@ export default function Screen() {
 					preferSmallImages
 						? (page: number) =>
 								sdk.media.bookPageURL(book.id, page, {
-									height: 600,
+									dimension: Dimension.Height,
+									size: 600,
 								})
 						: undefined
 				}
 				onPageChanged={onPageChanged}
 				resetTimer={reset}
+				nextInSeries={nextInSeries}
 			/>
 		)
 	}

@@ -960,6 +960,7 @@ type Media {
 	isFavorite: Boolean!
 	tags: [Tag!]!
 	series: Series!
+	libraryId: String!
 	library: Library!
 	libraryConfig: LibraryConfig!
 	"""
@@ -1070,7 +1071,7 @@ input MediaMetadataFilterInput {
 	links: FieldFilterString = null
 	teams: FieldFilterString = null
 	summary: FieldFilterString = null
-	series: NumericFilterI32 = null
+	series: FieldFilterString = null
 	_and: [MediaMetadataFilterInput!] = null
 	_not: [MediaMetadataFilterInput!] = null
 	_or: [MediaMetadataFilterInput!] = null
@@ -1163,6 +1164,7 @@ type MediaMetadataOverview {
 	publishers: [String!]!
 	characters: [String!]!
 	teams: [String!]!
+	series: [String!]!
 }
 
 enum MediaModelOrdering {

@@ -1,4 +1,4 @@
-import { invalidateQueries } from '@stump/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useState } from 'react'
 import { View } from 'react-native'
 import { ScrollView } from 'react-native-gesture-handler'
@@ -8,9 +8,11 @@ import RefreshControl from '~/components/RefreshControl'
 
 export default function Screen() {
 	const [refreshing, setRefreshing] = useState(false)
+
+	const client = useQueryClient()
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true)
-		await invalidateQueries({ keys: ['continueReading'], exact: false })
+		await client.invalidateQueries({ queryKey: ['continueReading'], exact: false })
 		setRefreshing(false)
 	}, [])
 
@@ -18,6 +20,7 @@ export default function Screen() {
 		<ScrollView
 			className="flex-1 bg-background p-4"
 			refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+			contentInsetAdjustmentBehavior="automatic"
 		>
 			<View className="flex flex-1 gap-8 pb-8">
 				<ContinueReading />

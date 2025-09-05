@@ -12,6 +12,7 @@ import { ColumnItem } from '~/components/grid'
 import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import { LibraryGridItem } from '~/components/library'
 import { ILibraryGridItemFragment } from '~/components/library/LibraryGridItem'
+import RefreshControl from '~/components/RefreshControl'
 import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
 
 const query = graphql(`
@@ -41,13 +42,14 @@ export default function Screen() {
 	const navigation = useNavigation()
 	useDynamicHeader({
 		title: 'Libraries',
-		headerLeft: () => <ChevronLeft onPress={() => navigation.goBack()} />,
+		headerLeft:
+			Platform.OS === 'ios' ? () => <ChevronLeft onPress={() => navigation.goBack()} /> : undefined,
 	})
 
-	const { data, hasNextPage, fetchNextPage } = useInfiniteSuspenseGraphQL(query, [
-		'libraries',
-		serverID,
-	])
+	const { data, hasNextPage, fetchNextPage, refetch, isRefetching } = useInfiniteSuspenseGraphQL(
+		query,
+		['libraries', serverID],
+	)
 	const { numColumns, sizeEstimate } = useGridItemSize()
 
 	const onEndReached = useCallback(() => {
@@ -76,12 +78,12 @@ export default function Screen() {
 				contentContainerStyle={{
 					padding: 16,
 				}}
-				centerContent
 				estimatedItemSize={sizeEstimate}
 				numColumns={numColumns}
 				onEndReachedThreshold={0.75}
 				onEndReached={onEndReached}
 				contentInsetAdjustmentBehavior="automatic"
+				refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
 			/>
 		</SafeAreaView>
 	)
