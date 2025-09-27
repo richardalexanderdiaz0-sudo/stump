@@ -54,9 +54,30 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 					faceIDPermission: 'Allow $(PRODUCT_NAME) to access your Face ID biometric data.',
 				},
 			],
+			['./plugins/withGradle.ts'],
+			[
+				'./plugins/withPods.ts',
+				{
+					pods: [
+						"source 'https://github.com/readium/podspecs'",
+						"source 'https://cdn.cocoapods.org/'",
+
+						"pod 'Minizip', modular_headers: true",
+						"pod 'ReadiumShared', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumShared.podspec'",
+						"pod 'ReadiumStreamer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumStreamer.podspec'",
+						"pod 'ReadiumNavigator', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumNavigator.podspec'",
+						"pod 'ReadiumAdapterGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumAdapterGCDWebServer.podspec'",
+						"pod 'ReadiumOPDS', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumOPDS.podspec'",
+						"pod 'ReadiumInternal', podspec: 'https://raw.githubusercontent.com/readium/swift-toolkit/3.4.0/Support/CocoaPods/ReadiumInternal.podspec'",
+						"pod 'Fuzi', podspec: 'https://raw.githubusercontent.com/readium/Fuzi/refs/heads/master/Fuzi.podspec'",
+						"pod 'ReadiumGCDWebServer', podspec: 'https://raw.githubusercontent.com/readium/GCDWebServer/4.0.0/GCDWebServer.podspec', modular_headers: true",
+					],
+				},
+			],
 			[
 				'expo-font',
 				{
+					// TODO: Manually define font-family in config to make access easier
 					fonts: [
 						'assets/fonts/Atkinson-Hyperlegible-Bold.ttf',
 						'assets/fonts/Atkinson-Hyperlegible-BoldItalic.ttf',

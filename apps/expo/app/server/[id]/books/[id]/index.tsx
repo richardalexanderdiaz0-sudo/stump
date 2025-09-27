@@ -8,6 +8,7 @@ import { useLayoutEffect } from 'react'
 import { Platform, View } from 'react-native'
 import { Pressable, ScrollView } from 'react-native-gesture-handler'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { stripHtml } from 'string-strip-html'
 
 import { useActiveServer } from '~/components/activeServer'
 import { BookMetaLink } from '~/components/book'
@@ -69,6 +70,14 @@ const query = graphql(`
 				page
 				percentageCompleted
 				epubcfi
+				locator {
+					chapterTitle
+					locations {
+						position
+						totalProgression
+					}
+					href
+				}
 				startedAt
 				elapsedSeconds
 			}
@@ -191,9 +200,14 @@ export default function Screen() {
 		}
 	}
 
-	const renderPercentage = ({ page, percentageCompleted }: ActiveReadingSession) => {
-		if (!page && !percentageCompleted) {
+	const renderPercentage = ({ page, percentageCompleted, locator }: ActiveReadingSession) => {
+		if (!page && !percentageCompleted && !locator) {
 			return null
+		}
+
+		if (locator?.locations?.totalProgression != null && !percentageCompleted) {
+			const percentage = Math.round(locator.locations.totalProgression * 100)
+			return <InfoStat label="Completed" value={`${percentage}%`} />
 		}
 
 		let percentage: number
@@ -216,6 +230,19 @@ export default function Screen() {
 			return <InfoStat label="Read time" value={readTime} />
 		} else {
 			return <InfoStat label="Started" value={dayjs(startedAt).fromNow(true)} />
+		}
+	}
+
+	const renderEpubLocator = ({ epubcfi, locator }: ActiveReadingSession) => {
+		if (!locator && !epubcfi) {
+			return null
+		}
+
+		if (locator) {
+			const chapterTitle = locator.chapterTitle || locator.href || 'Unknown'
+			return <InfoStat label="Chapter" value={chapterTitle} />
+		} else {
+			return <InfoStat label="Locator" value={`${epubcfi?.slice(0, 4)}...${epubcfi?.slice(-4)}`} />
 		}
 	}
 
@@ -269,7 +296,11 @@ export default function Screen() {
 
 						{seriesName && book.seriesPosition != null && (
 							<Text className="text-center text-base text-foreground-muted">
-								{book.seriesPosition} of {book.series.mediaCount} in {seriesName}
+								{book.seriesPosition}
+								{book.seriesPosition > book.series.mediaCount
+									? null
+									: ` of ${book.series.mediaCount} `}
+								in {seriesName}
 							</Text>
 						)}
 					</View>
@@ -294,12 +325,7 @@ export default function Screen() {
 					{progression && (
 						<View className="flex flex-row justify-around">
 							{progression.page && <InfoStat label="Page" value={progression.page.toString()} />}
-							{progression.epubcfi && (
-								<InfoStat
-									label="Locator"
-									value={`${progression.epubcfi.slice(0, 4)}...${progression.epubcfi.slice(-4)}`}
-								/>
-							)}
+							{renderEpubLocator(progression)}
 							{renderPercentage(progression)}
 							{renderReadTime(progression)}
 						</View>
@@ -366,7 +392,12 @@ export default function Screen() {
 								? [<InfoRow key="noMetadata" label="No metadata available" value="" />]
 								: []),
 							...(description
-								? [<BookDescription key="description" description={description} />]
+								? [
+										<BookDescription
+											key="description"
+											description={stripHtml(description).result}
+										/>,
+									]
 								: []),
 							...(seriesName ? [<InfoRow key="series" label="Series" value={seriesName} />] : []),
 							...(seriesPosition

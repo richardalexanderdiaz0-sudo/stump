@@ -13,9 +13,10 @@ import * as NavigationBar from 'expo-navigation-bar'
 import { useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo } from 'react'
 
-import { EpubJSReader, ImageBasedReader, UnsupportedReader } from '~/components/book/reader'
+import { ImageBasedReader, ReadiumReader, UnsupportedReader } from '~/components/book/reader'
 import { NextInSeriesBookRef } from '~/components/book/reader/image/context'
 import { useAppState } from '~/lib/hooks'
+import { intoReadiumLocator, ReadiumLocator } from '~/modules/readium'
 import { useReaderStore } from '~/stores'
 import { useBookPreferences, useBookTimer } from '~/stores/reader'
 
@@ -26,9 +27,32 @@ export const query = graphql(`
 			name: resolvedName
 			pages
 			extension
+			thumbnail {
+				url
+			}
 			readProgress {
 				percentageCompleted
 				epubcfi
+				locator {
+					chapterTitle
+					href
+					title
+					locations {
+						fragments
+						progression
+						position
+						totalProgression
+						cssSelector
+						partialCfi
+					}
+					# FIXME: This caused the book to restart when selected...
+					# text {
+					# 	after
+					# 	before
+					# 	highlight
+					# }
+					type
+				}
 				page
 				elapsedSeconds
 			}
@@ -36,6 +60,11 @@ export const query = graphql(`
 				defaultReadingImageScaleFit
 				defaultReadingMode
 				defaultReadingDir
+			}
+			metadata {
+				writers
+				publisher
+				summary
 			}
 			pageAnalysis {
 				dimensions {
@@ -51,6 +80,21 @@ export const query = graphql(`
 						url
 					}
 				}
+			}
+			ebook {
+				bookmarks {
+					id
+					userId
+					epubcfi
+					mediaId
+				}
+				spine {
+					id
+					idref
+					properties
+					linear
+				}
+				toc
 			}
 		}
 	}
@@ -105,6 +149,9 @@ export default function Screen() {
 	const { mutate: updateProgress } = useGraphQLMutation(mutation, {
 		retry: (attempts) => attempts < 3,
 		throwOnError: false,
+		onError: (error) => {
+			console.error('Failed to update read progress:', error)
+		},
 	})
 
 	const onPageChanged = useCallback(
@@ -122,13 +169,22 @@ export default function Screen() {
 		[book.id, totalSeconds, updateProgress],
 	)
 
-	const onEpubCfiChanged = useCallback(
-		(cfi: string, percentage: number) => {
+	const onLocationChanged = useCallback(
+		(locator: ReadiumLocator, percentage: number) => {
 			updateProgress({
 				id: book.id,
 				input: {
 					epub: {
-						epubcfi: cfi,
+						locator: {
+							readium: {
+								chapterTitle: locator.chapterTitle,
+								href: locator.href,
+								locations: locator.locations,
+								text: locator.text,
+								title: locator.title,
+								type: locator.type || 'application/xhtml+xml',
+							},
+						},
 						elapsedSeconds: totalSeconds,
 						percentage,
 					},
@@ -204,13 +260,13 @@ export default function Screen() {
 	if (!book) return null
 
 	if (book.extension.match(EBOOK_EXTENSION)) {
-		const currentProgressCfi = book.readProgress?.epubcfi || undefined
-		// const initialCfi = restart ? undefined : currentProgressCfi
+		const initialLocator = book.readProgress?.locator || undefined
+
 		return (
-			<EpubJSReader
+			<ReadiumReader
 				book={book}
-				initialCfi={currentProgressCfi} /*incognito={incognito}*/
-				onEpubCfiChanged={onEpubCfiChanged}
+				initialLocator={initialLocator ? intoReadiumLocator(initialLocator) : undefined}
+				onLocationChanged={onLocationChanged}
 			/>
 		)
 	} else if (book.extension.match(ARCHIVE_EXTENSION) || book.extension.match(PDF_EXTENSION)) {
