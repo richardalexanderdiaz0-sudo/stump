@@ -24,7 +24,7 @@ export default function EnumCell<Field extends string, Value extends string>({
 			<NativeSelect
 				className="sm:max-w-xs"
 				{...form.register(binding)}
-				value={value ?? ''}
+				defaultValue={value ?? ''}
 				options={withEmptyOptions(options, value)}
 			/>
 		)
