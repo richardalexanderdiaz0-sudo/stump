@@ -528,7 +528,7 @@ const getDefaultValues = (stumpEnabled: boolean, editingServer?: SavedServerWith
 		kind: editingServer.kind,
 		name: editingServer.name,
 		url: editingServer.url,
-		defaultServer: false,
+		defaultServer: editingServer.defaultServer ?? false,
 		stumpOPDS: editingServer.stumpOPDS,
 		customHeaders: Object.entries(editingServer.config?.customHeaders || {}).map(
 			([key, value]) => ({
