@@ -23,6 +23,7 @@ export default function EnumCell<Field extends string, Value extends string>({
 		return (
 			<NativeSelect
 				className="sm:max-w-xs"
+				size="sm"
 				{...form.register(binding)}
 				defaultValue={value ?? ''}
 				options={withEmptyOptions(options, value)}

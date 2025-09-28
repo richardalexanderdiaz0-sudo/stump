@@ -1,8 +1,7 @@
 import { SeriesMetadataEditorFragment } from '@stump/graphql'
 import { z } from 'zod'
 
-const nonEmptyString = z.string().min(1)
-const stringArray = z.array(nonEmptyString)
+const stringArray = z.array(z.string().min(1))
 
 export const VALID_SERIES_STATUS = [
 	'Abandoned',
@@ -18,22 +17,34 @@ export const isSeriesStatus = (value: unknown): value is SeriesStatus => {
 	return seriesStatus.safeParse(value).success
 }
 
-export const schema = z.object({
-	ageRating: z.number().min(0).nullish(),
-	booktype: nonEmptyString.nullish(),
-	characters: stringArray.nullish(),
-	comicid: z.number().nullish(),
-	genres: stringArray.nullish(),
-	imprint: nonEmptyString.nullish(),
-	links: z.array(z.string().url()).nullish(),
-	metaType: nonEmptyString.nullish(),
-	publisher: z.string().nullish(),
-	status: nonEmptyString.nullish(),
-	summary: nonEmptyString.nullish(),
-	title: nonEmptyString.nullish(),
-	volume: z.number().min(1).nullish(),
-	writers: stringArray.nullish(),
-})
+export const schema = z
+	.object({
+		ageRating: z.number().min(0).nullish(),
+		booktype: z.string().nullish(),
+		characters: stringArray.nullish(),
+		comicid: z.number().nullish(),
+		genres: stringArray.nullish(),
+		imprint: z.string().nullish(),
+		links: z.array(z.string().url()).nullish(),
+		metaType: z.string().nullish(),
+		publisher: z.string().nullish(),
+		status: z.string().nullish(),
+		summary: z.string().nullish(),
+		title: z.string().nullish(),
+		volume: z.number().min(1).nullish(),
+		writers: stringArray.nullish(),
+	})
+	.transform((values) => {
+		const transformed = { ...values }
+
+		for (const [key, value] of Object.entries(transformed)) {
+			if (typeof value === 'string' && value.trim() === '') {
+				transformed[key as keyof typeof transformed] = null as never
+			}
+		}
+
+		return transformed
+	})
 
 export type SeriesMetadataEditorValues = z.infer<typeof schema>
 

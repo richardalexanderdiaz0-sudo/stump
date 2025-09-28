@@ -1,42 +1,55 @@
 import { MediaMetadataEditorFragment } from '@stump/graphql'
 import { z } from 'zod'
 
-const nonEmptyString = z.string().min(1)
-const stringArray = z.array(nonEmptyString)
+const stringArray = z.array(z.string().min(1))
 
-export const schema = z.object({
-	ageRating: z.number().min(0).nullish(),
-	characters: stringArray.nullish(),
-	colorists: stringArray.nullish(),
-	coverArtists: stringArray.nullish(),
-	day: z.number().min(1).max(31).nullish(),
-	editors: stringArray.nullish(),
-	identifierAmazon: nonEmptyString.nullish(),
-	identifierCalibre: nonEmptyString.nullish(),
-	identifierGoogle: nonEmptyString.nullish(),
-	identifierIsbn: nonEmptyString.nullish(),
-	identifierMobiAsin: nonEmptyString.nullish(),
-	identifierUuid: nonEmptyString.nullish(),
-	genres: stringArray.nullish(),
-	inkers: stringArray.nullish(),
-	language: nonEmptyString.nullish(),
-	letterers: stringArray.nullish(),
-	links: z.array(z.string().url()).nullish(),
-	month: z.number().min(1).max(12).nullish(),
-	number: z.number({ coerce: true }).nullish(),
-	notes: nonEmptyString.nullish(),
-	pageCount: z.number().min(1).nullish(),
-	pencillers: stringArray.nullish(),
-	publisher: z.string().nullish(),
-	series: z.string().nullish(),
-	summary: nonEmptyString.nullish(),
-	teams: stringArray.nullish(),
-	title: nonEmptyString.nullish(),
-	titleSort: nonEmptyString.nullish(),
-	volume: z.number().min(1).nullish(),
-	writers: stringArray.nullish(),
-	year: z.number().min(1900).max(new Date().getFullYear()).nullish(),
-})
+export const schema = z
+	.object({
+		ageRating: z.number().min(0).nullish(),
+		characters: stringArray.nullish(),
+		colorists: stringArray.nullish(),
+		coverArtists: stringArray.nullish(),
+		day: z.number().min(1).max(31).nullish(),
+		editors: stringArray.nullish(),
+		identifierAmazon: z.string().nullish(),
+		identifierCalibre: z.string().nullish(),
+		identifierGoogle: z.string().nullish(),
+		identifierIsbn: z.string().nullish(),
+		identifierMobiAsin: z.string().nullish(),
+		identifierUuid: z.string().nullish(),
+		genres: stringArray.nullish(),
+		inkers: stringArray.nullish(),
+		language: z.string().nullish(),
+		letterers: stringArray.nullish(),
+		links: z.array(z.string().url()).nullish(),
+		month: z.number().min(1).max(12).nullish(),
+		number: z.number({ coerce: true }).nullish(),
+		notes: z.string().nullish(),
+		pageCount: z.number().min(1).nullish(),
+		pencillers: stringArray.nullish(),
+		publisher: z.string().nullish(),
+		series: z.string().nullish(),
+		summary: z.string().nullish(),
+		teams: stringArray.nullish(),
+		title: z.string().nullish(),
+		titleSort: z.string().nullish(),
+		volume: z.number().min(1).nullish(),
+		writers: stringArray.nullish(),
+		year: z.number().min(1900).max(new Date().getFullYear()).nullish(),
+	})
+	.transform((values) => {
+		const transformed = { ...values }
+
+		for (const [key, value] of Object.entries(transformed)) {
+			if (typeof value === 'string' && value.trim() === '') {
+				transformed[key as keyof typeof transformed] = null
+			} else if (typeof value === 'number' && isNaN(value)) {
+				transformed[key as keyof typeof transformed] = null
+			}
+		}
+
+		return transformed
+	})
 
 export type MetadataEditorValues = z.infer<typeof schema>
 
