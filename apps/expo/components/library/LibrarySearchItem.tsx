@@ -5,6 +5,7 @@ import { View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
 
 import { useDisplay } from '~/lib/hooks'
+import { usePreferencesStore } from '~/stores'
 
 import { useActiveServer } from '../activeServer'
 import { BorderAndShadow } from '../BorderAndShadow'
@@ -43,6 +44,7 @@ export default function LibrarySearchItem({ library }: Props) {
 	const { width } = useDisplay()
 	const data = useFragment(fragment, library)
 	const router = useRouter()
+	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
 
 	return (
 		<Pressable
@@ -65,7 +67,7 @@ export default function LibrarySearchItem({ library }: Props) {
 						}}
 						resizeMode="stretch"
 						resize={75 * 1.5}
-						style={{ width: 75, height: 75 / (2 / 3) }}
+						style={{ height: 75 / thumbnailRatio, width: 75 }}
 					/>
 				</BorderAndShadow>
 

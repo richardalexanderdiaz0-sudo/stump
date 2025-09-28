@@ -3,7 +3,7 @@ import { FragmentType, graphql, useFragment } from '@stump/graphql'
 import dayjs from 'dayjs'
 import { useRouter } from 'expo-router'
 import { useCallback, useRef } from 'react'
-import { Easing, Pressable, View } from 'react-native'
+import { Easing, Platform, Pressable, View } from 'react-native'
 import { easeGradient } from 'react-native-easing-gradient'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import LinearGradient from 'react-native-linear-gradient'
@@ -17,6 +17,7 @@ import { Heading, Progress, Text } from '~/components/ui'
 import { COLORS, useColors } from '~/lib/constants'
 import { parseGraphQLDecimal } from '~/lib/format'
 import { useDisplay } from '~/lib/hooks'
+import { usePreferencesStore } from '~/stores'
 
 import { useActiveServer } from '../context'
 
@@ -48,8 +49,7 @@ type Props = {
 	books: (IReadingNowFragment & { id: string })[]
 }
 
-const IMAGE_HEIGHT = 425
-const IMAGE_WIDTH = IMAGE_HEIGHT * (2 / 3)
+const IMAGE_WIDTH = 280
 
 export default function ReadingNow({ books }: Props) {
 	const { width } = useDisplay()
@@ -58,6 +58,9 @@ export default function ReadingNow({ books }: Props) {
 	const carouselRef = useRef<ICarouselInstance>(null)
 	const progressValue = useSharedValue<number>(0)
 	const activeDotIndex = useSharedValue(-1) // -1 means inactive
+
+	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
+	const imageHeight = IMAGE_WIDTH / thumbnailRatio
 
 	const onPressPagination = (index: number) => {
 		carouselRef.current?.scrollTo({
@@ -94,13 +97,13 @@ export default function ReadingNow({ books }: Props) {
 			{/* <Heading size="xl">Jump Back In</Heading> */}
 
 			{/* This view prevents the left 20px of the carousel from overriding swipe back navigation */}
-			<View className="absolute left-0 top-0 z-30 w-[20px]" style={{ height: IMAGE_HEIGHT }} />
+			<View className="absolute left-0 top-0 z-30 w-[20px]" style={{ height: imageHeight + 8 }} />
 
 			<View className="w-full">
 				<Carousel
 					ref={carouselRef}
 					width={width}
-					height={IMAGE_HEIGHT + 8} // add some padding to not cut off the shadow
+					height={imageHeight + 8} // add some padding to not cut off the shadow
 					data={books}
 					loop={false}
 					mode="parallax"
@@ -170,6 +173,9 @@ function ReadingNowItem({ book }: ReadingNowItemProps) {
 	const { width, isTablet } = useDisplay()
 
 	const percentageCompleted = parseGraphQLDecimal(data.readProgress?.percentageCompleted)
+
+	const thumbnailRatio = usePreferencesStore((state) => state.thumbnailRatio)
+	const imageHeight = IMAGE_WIDTH / thumbnailRatio
 
 	// TODO: figure out why I need explicit widths for *each* elem
 	const renderBookContent = useCallback(() => {
@@ -247,18 +253,31 @@ function ReadingNowItem({ book }: ReadingNowItemProps) {
 		easing: Easing.bezier(0.42, 0, 1, 1), // https://cubic-bezier.com/#.42,0,1,1
 	})
 
+	const Gradient = () => (
+		<LinearGradient
+			colors={gradientColors}
+			style={{
+				position: 'absolute',
+				inset: 0,
+				zIndex: 10,
+				borderRadius: Platform.OS === 'android' ? 12 : undefined,
+			}}
+			locations={gradientLocations}
+		/>
+	)
+
 	return (
 		<View className="flex flex-row gap-4">
 			<Pressable onPress={() => router.navigate(`/server/${serverID}/books/${data.id}`)}>
+				{
+					// Not ideal but stops carousel flickering on android.
+					// Causes border to be covered by the gradient.
+					Platform.OS === 'android' && <Gradient />
+				}
 				<BorderAndShadow
 					style={{ borderRadius: 12, borderWidth: 0.5, shadowRadius: 1.41, elevation: 2 }}
 				>
-					<LinearGradient
-						colors={gradientColors}
-						style={{ position: 'absolute', inset: 0, zIndex: 10 }}
-						locations={gradientLocations}
-					/>
-
+					{Platform.OS !== 'android' && <Gradient />}
 					<TurboImage
 						source={{
 							uri: data.thumbnail.url,
@@ -270,76 +289,76 @@ function ReadingNowItem({ book }: ReadingNowItemProps) {
 						resizeMode="stretch"
 						resize={IMAGE_WIDTH * 1.5}
 						style={{
-							height: IMAGE_HEIGHT,
+							height: imageHeight,
 							width: IMAGE_WIDTH,
 						}}
 					/>
+				</BorderAndShadow>
 
-					<View className="absolute bottom-0 z-20 w-full gap-2 p-3">
-						{!isTablet && (
-							<Text
-								className="text-2xl font-bold leading-8"
-								style={{
-									textShadowOffset: { width: 2, height: 1 },
-									textShadowRadius: 2,
-									textShadowColor: 'rgba(0, 0, 0, 0.5)',
-									zIndex: 20,
-									color: COLORS.dark.foreground.DEFAULT,
-								}}
-							>
-								{data.resolvedName}
-							</Text>
-						)}
+				<View className="absolute bottom-0 z-20 w-full gap-2 p-3">
+					{!isTablet && (
+						<Text
+							className="text-2xl font-bold leading-8"
+							style={{
+								textShadowOffset: { width: 2, height: 1 },
+								textShadowRadius: 2,
+								textShadowColor: 'rgba(0, 0, 0, 0.5)',
+								zIndex: 20,
+								color: COLORS.dark.foreground.DEFAULT,
+							}}
+						>
+							{data.resolvedName}
+						</Text>
+					)}
 
-						<View className="flex items-start gap-2">
-							<View className="flex w-full flex-row items-center justify-between">
-								{!isEbookProgress && !!data.readProgress?.page && data.readProgress.page > 0 && (
-									<Text
-										className="flex-wrap text-base"
-										style={{
-											color: COLORS.dark.foreground.subtle,
-											opacity: 0.9,
-										}}
-									>
-										Page {data.readProgress?.page} of {data.pages}
-									</Text>
-								)}
+					<View className="flex items-start gap-2">
+						<View className="flex w-full flex-row items-center justify-between">
+							{!isEbookProgress && !!data.readProgress?.page && data.readProgress.page > 0 && (
+								<Text
+									className="flex-wrap text-base"
+									style={{
+										color: COLORS.dark.foreground.subtle,
+										opacity: 0.9,
+									}}
+								>
+									Page {data.readProgress?.page} of {data.pages}
+								</Text>
+							)}
 
-								{isEbookProgress && percentageCompleted != null && (
-									<Text
-										className="flex-wrap text-base"
-										style={{
-											color: COLORS.dark.foreground.subtle,
-											opacity: 0.9,
-										}}
-									>
-										{(percentageCompleted * 100).toFixed(0)}%
-									</Text>
-								)}
+							{isEbookProgress && percentageCompleted != null && (
+								<Text
+									className="flex-wrap text-base"
+									style={{
+										color: COLORS.dark.foreground.subtle,
+										opacity: 0.9,
+									}}
+								>
+									{(percentageCompleted * 100).toFixed(0)}%
+								</Text>
+							)}
 
-								{!!data.readProgress?.updatedAt && (
-									<Text
-										className="flex-wrap text-base"
-										style={{
-											color: COLORS.dark.foreground.subtle,
-											opacity: 0.9,
-										}}
-									>
-										{dayjs(data.readProgress?.updatedAt).fromNow()}
-									</Text>
-								)}
-							</View>
-
-							{percentageCompleted && (
-								<Progress
-									className="h-1 bg-[#898d94]"
-									indicatorClassName="bg-[#f5f3ef]"
-									value={percentageCompleted * 100}
-								/>
+							{!!data.readProgress?.updatedAt && (
+								<Text
+									className="flex-wrap text-base"
+									style={{
+										color: COLORS.dark.foreground.subtle,
+										opacity: 0.9,
+									}}
+								>
+									{dayjs(data.readProgress?.updatedAt).fromNow()}
+								</Text>
 							)}
 						</View>
+
+						{percentageCompleted && (
+							<Progress
+								className="h-1 bg-[#898d94]"
+								indicatorClassName="bg-[#f5f3ef]"
+								value={percentageCompleted * 100}
+							/>
+						)}
 					</View>
-				</BorderAndShadow>
+				</View>
 			</Pressable>
 
 			{renderBookContent()}
