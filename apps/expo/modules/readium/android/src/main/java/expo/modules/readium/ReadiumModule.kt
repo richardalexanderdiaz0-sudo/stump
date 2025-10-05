@@ -15,6 +15,7 @@ import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import android.util.Log
 import org.readium.r2.navigator.preferences.FontFamily
+import org.readium.r2.navigator.preferences.ImageFilter
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.util.getOrElse
 
@@ -111,7 +112,13 @@ class ReadiumModule : Module() {
           view.go(locator, animated = false)
       }
 
-      Prop("locator") { view: EPUBView, prop: Map<String, Any> ->
+      Prop("locator") { view: EPUBView, prop: Map<String, Any?>? ->
+        if (prop == null) {
+          Log.d("ReadiumModule", "Received null locator prop")
+          view.pendingProps.locator = null
+          return@Prop
+        }
+        Log.d("ReadiumModule", "Received locator prop: $prop")
         val locator = Locator.fromJSON(JSONObject(prop)) ?: return@Prop
         view.pendingProps.locator = locator
       }
@@ -141,6 +148,18 @@ class ReadiumModule : Module() {
 
       Prop("readingDirection") { view: EPUBView, prop: String ->
         view.pendingProps.readingDirection = prop
+      }
+
+      Prop("publisherStyles") { view: EPUBView, prop: Boolean ->
+        view.pendingProps.publisherStyles = prop
+      }
+
+      Prop("imageFilter") { view: EPUBView, prop: String? ->
+        view.pendingProps.imageFilter = when (prop) {
+          "darken" -> ImageFilter.DARKEN
+          "invert" -> ImageFilter.INVERT
+          else -> null
+        }
       }
 
       OnViewDidUpdateProps { view: EPUBView ->

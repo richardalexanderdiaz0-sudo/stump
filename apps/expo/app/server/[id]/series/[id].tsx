@@ -15,6 +15,7 @@ import { ColumnItem } from '~/components/grid'
 import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import ListEmpty from '~/components/ListEmpty'
 import RefreshControl from '~/components/RefreshControl'
+import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
 import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
 import { BookFilterContext, createBookFilterStore } from '~/stores/filters'
 
@@ -115,7 +116,7 @@ export default function Screen() {
 		<BookFilterContext.Provider value={store}>
 			<SafeAreaView
 				style={{ flex: 1 }}
-				edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['left', 'right']}
+				edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
 			>
 				<FlashList
 					ref={listRef}
@@ -125,12 +126,9 @@ export default function Screen() {
 						padding: 16,
 					}}
 					numColumns={numColumns}
-					onEndReachedThreshold={0.75}
+					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 					onEndReached={onEndReached}
 					ListHeaderComponent={<BookFilterHeader seriesId={id} />}
-					// FIXME: I don't understand why this performs so terribly
-					// contentInsetAdjustmentBehavior="never"
-					// ListHeaderComponentStyle={{ paddingBottom: 16, paddingTop: insets.top * 2 }}
 					ListHeaderComponentStyle={{ paddingBottom: 16 }}
 					contentInsetAdjustmentBehavior="always"
 					refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}

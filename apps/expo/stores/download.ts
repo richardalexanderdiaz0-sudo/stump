@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useSDK } from '@stump/client'
 import { MediaMetadata } from '@stump/graphql'
-import * as FileSystem from 'expo-file-system'
+import * as FileSystem from 'expo-file-system/legacy'
 import { useCallback, useEffect } from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
@@ -9,6 +9,10 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { useActiveServer } from '~/components/activeServer'
 import { booksDirectory, ensureDirectoryExists } from '~/lib/filesystem'
 
+// TODO(offline-reading): Migrate to SQLite, this won't scale well I think
+
+// Empty object yada yada
+// eslint-disable-next-line
 type UnsyncedReadProgress = {}
 
 type FileStumpRef = {
@@ -27,6 +31,7 @@ type DownloadedFile = {
 	serverID: string
 	unsyncedProgress?: UnsyncedReadProgress
 	stumpRef?: FileStumpRef
+	size?: number // in bytes
 }
 
 type SeriesRef = {
@@ -151,10 +156,13 @@ export function useDownload() {
 					return null
 				}
 
+				const size = Number(result.headers['Content-Length'] ?? 0)
+
 				addFile({
 					id,
 					filename,
 					serverID,
+					size: !isNaN(size) && size > 0 ? size : undefined,
 				})
 
 				return result.uri

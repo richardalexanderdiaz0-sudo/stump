@@ -20,6 +20,7 @@ import expo.modules.kotlin.views.ExpoView
 import kotlinx.coroutines.*
 import org.readium.r2.navigator.DecorableNavigator
 import org.readium.r2.navigator.preferences.FontFamily
+import org.readium.r2.navigator.preferences.ImageFilter
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
 import org.readium.r2.shared.ExperimentalReadiumApi
@@ -42,7 +43,9 @@ data class Props(
     var fontFamily: FontFamily? = null,
     var lineHeight: Double? = null,
     var fontSize: Double? = null,
-    var readingDirection: String? = null
+    var readingDirection: String? = null,
+    var publisherStyles: Boolean? = null,
+    var imageFilter: ImageFilter? = null
 )
 
 data class FinalizedProps(
@@ -54,7 +57,9 @@ data class FinalizedProps(
     val fontFamily: FontFamily,
     val lineHeight: Double,
     val fontSize: Double,
-    val readingDirection: String
+    val readingDirection: String,
+    val publisherStyles: Boolean,
+    val imageFilter: ImageFilter?
 )
 
 @SuppressLint("ViewConstructor", "ResourceType")
@@ -121,7 +126,9 @@ class EPUBView(context: Context, appContext: AppContext) : ExpoView(context, app
                 ?: oldProps?.fontFamily ?: FontFamily("Literata"),
             lineHeight = pendingProps.lineHeight ?: oldProps?.lineHeight ?: 1.4,
             fontSize = pendingProps.fontSize ?: oldProps?.fontSize ?: 1.0,
-            readingDirection = pendingProps.readingDirection ?: oldProps?.readingDirection ?: "ltr"
+            readingDirection = pendingProps.readingDirection ?: oldProps?.readingDirection ?: "ltr",
+            publisherStyles = pendingProps.publisherStyles ?: oldProps?.publisherStyles ?: true,
+            imageFilter = pendingProps.imageFilter ?: oldProps?.imageFilter
         )
 
         if (props!!.bookId != oldProps?.bookId || props!!.url != oldProps?.url) {
@@ -142,7 +149,9 @@ class EPUBView(context: Context, appContext: AppContext) : ExpoView(context, app
                 backgroundColor = org.readium.r2.navigator.preferences.Color(props!!.background),
                 fontFamily = props!!.fontFamily,
                 fontSize = props!!.fontSize,
+                imageFilter = props!!.imageFilter,
                 lineHeight = props!!.lineHeight,
+                publisherStyles = props!!.publisherStyles,
 //                paragraphSpacing = props!!.paragraphSpacing,
 //                textAlign = props!!.textAlign,
                 textColor = org.readium.r2.navigator.preferences.Color(props!!.foreground),

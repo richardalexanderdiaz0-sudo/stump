@@ -105,9 +105,6 @@ export default function RootLayout() {
 			<ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
 				<BottomSheet.Provider>
 					<KeyboardProvider>
-						{/* TODO: This pushes content when entering/exiting */}
-						{/* <StatusBar style={isDarkColorScheme ? 'light' : 'dark'} hidden={shouldHideStatusBar} /> */}
-						{/* Note: https://github.com/react-navigation/react-navigation/issues/12579 */}
 						<SystemBars style={isDarkColorScheme ? 'light' : 'dark'} hidden={shouldHideStatusBar} />
 						<Stack
 							// https://github.com/expo/expo/issues/15244 ?

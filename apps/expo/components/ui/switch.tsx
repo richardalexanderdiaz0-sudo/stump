@@ -1,6 +1,6 @@
+import { Host, Switch as IosSwitch } from '@expo/ui/swift-ui'
 import * as SwitchPrimitives from '@rn-primitives/switch'
 import * as React from 'react'
-import { Platform } from 'react-native'
 import Animated, {
 	interpolateColor,
 	useAnimatedStyle,
@@ -8,8 +8,10 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated'
 
+import { IS_IOS_24_PLUS } from '~/lib/constants'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { cn } from '~/lib/utils'
+import { usePreferencesStore } from '~/stores'
 
 const RGB_COLORS = {
 	monochrome: {
@@ -60,12 +62,17 @@ type Props = {
 	size?: keyof typeof SIZES
 } & SwitchPrimitives.RootProps
 
-const SwitchNative = React.forwardRef<SwitchPrimitives.RootRef, Props>(
+const Switch = React.forwardRef<SwitchPrimitives.RootRef, Props>(
 	({ className, variant = 'brand', size = 'default', ...props }, ref) => {
 		const { colorScheme } = useColorScheme()
+		const accentColor = usePreferencesStore((state) => state.accentColor)
 		const xValue = SIZES[size]?.translateX || SIZES.default.translateX
 		const translateX = useDerivedValue(() => (props.checked ? xValue : 0))
-		const colors = RGB_COLORS[variant][colorScheme]
+		const defaultColors = RGB_COLORS[variant][colorScheme]
+		const colors = {
+			...defaultColors,
+			primary: accentColor || defaultColors.primary,
+		}
 		const animatedRootStyle = useAnimatedStyle(() => {
 			return {
 				backgroundColor: interpolateColor(
@@ -80,6 +87,21 @@ const SwitchNative = React.forwardRef<SwitchPrimitives.RootRef, Props>(
 		}))
 		const resolvedSize = SIZES[size] || SIZES.default
 
+		if (IS_IOS_24_PLUS) {
+			return (
+				<Host matchContents>
+					<IosSwitch
+						value={props.checked}
+						onValueChange={(checked) => {
+							props.onCheckedChange?.(checked)
+						}}
+						color={colors.primary}
+						variant="switch"
+					/>
+				</Host>
+			)
+		}
+
 		return (
 			<Animated.View
 				style={animatedRootStyle}
@@ -89,7 +111,6 @@ const SwitchNative = React.forwardRef<SwitchPrimitives.RootRef, Props>(
 					className={cn(
 						'squircle shrink-0 flex-row items-center rounded-full border border-transparent',
 						resolvedSize.root,
-						props.checked ? 'bg-primary' : 'bg-input',
 						className,
 					)}
 					{...props}
@@ -111,10 +132,6 @@ const SwitchNative = React.forwardRef<SwitchPrimitives.RootRef, Props>(
 		)
 	},
 )
-SwitchNative.displayName = 'SwitchNative'
-
-const Switch = Platform.select({
-	default: SwitchNative,
-})
+Switch.displayName = 'Switch'
 
 export { Switch }

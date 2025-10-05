@@ -257,14 +257,7 @@ export function useInfiniteSuspenseGraphQL<TResult, TVariables>(
 	queryKey: QueryKey,
 	variables?: TVariables extends Record<string, never> ? never : TVariables,
 	options?: Omit<
-		UseSuspenseInfiniteQueryOptions<
-			TResult,
-			Error,
-			TResult,
-			TResult,
-			readonly unknown[],
-			Pagination
-		>,
+		UseSuspenseInfiniteQueryOptions<TResult, Error, TResult, readonly unknown[], Pagination>,
 		'queryKey' | 'queryFn'
 	>,
 ): UseSuspenseInfiniteQueryResult<InfiniteData<TResult>> {
@@ -429,9 +422,8 @@ export const getNextPageParam = (paginationInfo?: PaginationInfo): Pagination | 
 			} satisfies Pagination
 		})
 		.with({ __typename: 'OffsetPaginationInfo' }, (info) => {
-			const { currentPage, totalPages, zeroBased } = info
-			const modifier = zeroBased ? 0 : 1
-			const nextPage = currentPage + 1 + modifier
+			const { currentPage, totalPages } = info
+			const nextPage = currentPage + 1
 			if (nextPage > totalPages) return undefined
 			return {
 				offset: {

@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router'
-import { View } from 'react-native'
-import { Pressable } from 'react-native-gesture-handler'
+import { Pressable, View } from 'react-native'
 import * as ContextMenu from 'zeego/context-menu'
 
 import { usePreferencesStore } from '~/stores'
@@ -42,6 +41,7 @@ export default function SavedServerListItem({ server, onEdit, onDelete, forceOPD
 						key={server.id}
 						onPress={() =>
 							router.push({
+								// @ts-expect-error: It's fine
 								pathname: server.kind === 'stump' && !forceOPDS ? '/server/[id]' : '/opds/[id]',
 								params: {
 									id: server.id,

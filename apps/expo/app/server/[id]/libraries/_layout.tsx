@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router'
 import { Platform } from 'react-native'
-import { ENABLE_LARGE_HEADER } from '~/lib/constants'
 
+import ChevronBackLink from '~/components/ChevronBackLink'
+import { IS_IOS_24_PLUS } from '~/lib/constants'
 import { usePreferencesStore } from '~/stores'
 
 export default function Screen() {
@@ -13,13 +14,15 @@ export default function Screen() {
 				name="index"
 				options={{
 					headerShown: true,
+					title: 'Libraries',
 					headerTransparent: Platform.OS === 'ios',
 					headerLargeTitleStyle: {
-						fontSize: 24,
+						fontSize: 30,
 					},
-					headerLargeTitle: ENABLE_LARGE_HEADER,
-					headerBlurEffect: 'regular',
+					headerLargeTitle: Platform.OS === 'ios',
+					headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
 					animation: animationEnabled ? 'default' : 'none',
+					headerLeft: Platform.OS === 'android' ? undefined : () => <ChevronBackLink />,
 				}}
 			/>
 		</Stack>

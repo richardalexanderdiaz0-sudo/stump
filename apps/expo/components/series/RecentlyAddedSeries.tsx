@@ -3,6 +3,8 @@ import { useInfiniteSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
 import { useCallback } from 'react'
 
+import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
+
 import { useActiveServer } from '../activeServer'
 import { ColumnItem } from '../grid'
 import { useGridItemSize } from '../grid/useGridItemSize'
@@ -62,14 +64,14 @@ export default function RecentlyAddedSeries({ header }: Props) {
 
 	return (
 		<FlashList
+			key={`recently-added-series-list-${data?.pages[0].series.nodes.length ? 'at-least-one-item' : 'empty'}`} // Force re-render when switching between empty and non-empty states
 			data={data?.pages.flatMap((page) => page.series.nodes) || []}
 			renderItem={renderItem}
 			contentContainerStyle={{
-				paddingHorizontal: 16,
-				paddingTop: 16,
+				padding: 16,
 			}}
 			numColumns={numColumns}
-			onEndReachedThreshold={0.75}
+			onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 			onEndReached={onEndReached}
 			contentInsetAdjustmentBehavior="always"
 			ListHeaderComponent={header}

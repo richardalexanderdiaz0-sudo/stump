@@ -1,8 +1,9 @@
 import { useNavigation, useRouter } from 'expo-router'
 import { useLayoutEffect, useMemo, useState } from 'react'
-import { NativeSyntheticEvent, Platform, TextInputChangeEventData } from 'react-native'
+import { NativeSyntheticEvent, Platform, TextInputChangeEvent, View } from 'react-native'
 
 import { icons } from '..'
+import { IS_IOS_24_PLUS } from '../constants'
 
 const { ChevronLeft } = icons
 
@@ -14,7 +15,7 @@ type Params = {
 	headerSearchBarOptions?: {
 		placeholder: string
 		shouldShowHintSearchIcon?: boolean
-		onChangeText: (e: NativeSyntheticEvent<TextInputChangeEventData>) => void
+		onChangeText: (e: NativeSyntheticEvent<TextInputChangeEvent>) => void
 		onSearchButtonPress?: () => void
 	}
 	showBackButton?: boolean
@@ -35,7 +36,11 @@ export function useDynamicHeader({
 		() =>
 			headerLeft ??
 			(showBackButton
-				? () => <ChevronLeft className="text-foreground" onPress={() => router.back()} />
+				? () => (
+						<View style={{ width: 35, height: 35, justifyContent: 'center', alignItems: 'center' }}>
+							<ChevronLeft className="text-foreground" onPress={() => router.back()} size={24} />
+						</View>
+					)
 				: undefined),
 		[headerLeft, showBackButton, router],
 	)
@@ -43,7 +48,7 @@ export function useDynamicHeader({
 	useLayoutEffect(() => {
 		if (didSetOptions) return
 		navigation.setOptions({
-			headerLeft: resolvedHeaderLeft,
+			...(headerLeft || showBackButton ? { headerLeft: resolvedHeaderLeft } : {}),
 			headerRight,
 			headerShown: true,
 			headerTransparent: Platform.OS === 'ios',
@@ -52,10 +57,19 @@ export function useDynamicHeader({
 				fontSize: 24,
 				lineHeight: 32,
 			},
-			headerBlurEffect: 'regular',
+			headerBlurEffect: IS_IOS_24_PLUS ? undefined : 'regular',
 			...rest,
 		})
 		setDidSetOptions(true)
-	}, [navigation, title, headerLeft, headerRight, rest, didSetOptions, resolvedHeaderLeft])
+	}, [
+		navigation,
+		title,
+		headerLeft,
+		headerRight,
+		rest,
+		didSetOptions,
+		resolvedHeaderLeft,
+		showBackButton,
+	])
 	return didSetOptions
 }

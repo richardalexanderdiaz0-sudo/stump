@@ -13,6 +13,7 @@ import { BookFilterHeader } from '~/components/book/filterHeader'
 import { ColumnItem } from '~/components/grid'
 import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import RefreshControl from '~/components/RefreshControl'
+import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
 import { BookFilterContext, createBookFilterStore } from '~/stores/filters'
 
 const query = graphql(`
@@ -78,7 +79,7 @@ export default function Screen() {
 		<BookFilterContext.Provider value={store}>
 			<SafeAreaView
 				style={{ flex: 1 }}
-				edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['left', 'right']}
+				edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
 			>
 				<FlashList
 					data={data?.pages.flatMap((page) => page.media.nodes) || []}
@@ -87,7 +88,7 @@ export default function Screen() {
 						padding: 16,
 					}}
 					numColumns={numColumns}
-					onEndReachedThreshold={0.75}
+					onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 					onEndReached={onEndReached}
 					contentInsetAdjustmentBehavior="automatic"
 					ListHeaderComponent={() => (

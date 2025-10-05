@@ -1,15 +1,16 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { FlashList } from '@shopify/flash-list'
 import { useSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
 import { useRouter } from 'expo-router'
-import { Image, Platform, View } from 'react-native'
-import { Pressable } from 'react-native-gesture-handler'
+import { Image, Platform, Pressable, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useActiveServer } from '~/components/activeServer'
 import { TurboImage } from '~/components/Image'
 import { Text } from '~/components/ui'
 import { useDisplay } from '~/lib/hooks'
+import { useColorScheme } from '~/lib/useColorScheme'
 
 const query = graphql(`
 	query LibraryPaths {
@@ -32,6 +33,7 @@ export default function Screen() {
 			libraries: { nodes: libraries },
 		},
 	} = useSuspenseGraphQL(query, ['libraryPaths'])
+	const { colorScheme } = useColorScheme()
 
 	const { isTablet, isLandscapeTablet } = useDisplay()
 	// const {} = useGridItemSize // TODO: Port for files grid bc different
@@ -65,9 +67,11 @@ export default function Screen() {
 							<View className="items-center" style={{ opacity: pressed ? 0.75 : 1 }}>
 								<TurboImage
 									source={{
-										// eslint-disable-next-line @typescript-eslint/no-require-imports
-										uri: Image.resolveAssetSource(require('../../../../assets/icons/Folder.png'))
-											.uri,
+										uri: Image.resolveAssetSource(
+											colorScheme === 'dark'
+												? require('../../../../assets/icons/Folder.png')
+												: require('../../../../assets/icons/Folder_Light.png'),
+										).uri,
 									}}
 									resize={100 * 1.5}
 									style={{ width: 100, height: 100 }}

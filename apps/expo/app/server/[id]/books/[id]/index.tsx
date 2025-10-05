@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router'
+import { ChevronLeft } from 'lucide-react-native'
 import { useLayoutEffect } from 'react'
 import { Platform, View } from 'react-native'
 import { Pressable, ScrollView } from 'react-native-gesture-handler'
@@ -17,12 +18,11 @@ import { BookDescription, InfoRow, InfoSection, InfoStat } from '~/components/bo
 import { BorderAndShadow } from '~/components/BorderAndShadow'
 import { TurboImage } from '~/components/Image'
 import RefreshControl from '~/components/RefreshControl'
-import { Button, Heading, icons, Text } from '~/components/ui'
+import { Button, Heading, Text } from '~/components/ui'
+import { Icon } from '~/components/ui/icon'
 import { formatBytes, parseGraphQLDecimal } from '~/lib/format'
 import { cn } from '~/lib/utils'
 import { usePreferencesStore } from '~/stores'
-
-const { ChevronLeft } = icons
 
 dayjs.extend(relativeTime)
 dayjs.extend(duration)
@@ -138,13 +138,11 @@ export default function Screen() {
 
 	const navigation = useNavigation()
 	useLayoutEffect(() => {
-		navigation.setOptions({
-			headerLeft: () => (
-				<ChevronLeft className="text-foreground" onPress={() => navigation.goBack()} />
-			),
-			headerRight: () => (book ? <BookActionMenu data={book} /> : null),
-			// headerTitle: Platform.OS === 'ios' ? book?.resolvedName : '',
-		})
+		if (book) {
+			navigation.setOptions({
+				headerRight: () => <BookActionMenu data={book} />,
+			})
+		}
 	}, [navigation, book, bookID])
 
 	if (!book) return null
@@ -160,7 +158,8 @@ export default function Screen() {
 	const characters = book.metadata?.characters?.join(', ')
 
 	const seriesName = book.metadata?.series || book.series.resolvedName
-	const seriesPosition = book.metadata?.number
+	const seriesPosition = Number(book.metadata?.number) || book.seriesPosition
+
 	const seriesVolume = book.metadata?.volume
 
 	const noMetadata = !description && !seriesName && !genres && !characters
@@ -251,7 +250,11 @@ export default function Screen() {
 	return (
 		<SafeAreaView
 			style={{ flex: 1 }}
-			edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['top', 'left', 'right', 'bottom']}
+			edges={[
+				'left',
+				'right',
+				...(Platform.OS === 'ios' ? [] : ['bottom' as const, 'top' as const]),
+			]}
 		>
 			<ScrollView
 				className="flex-1 bg-background px-6"
@@ -266,7 +269,7 @@ export default function Screen() {
 					{Platform.OS === 'android' && book && (
 						<View className="flex flex-row justify-between pt-2">
 							<Pressable onPress={() => router.back()}>
-								<ChevronLeft className="h-6 w-6" />
+								<Icon as={ChevronLeft} className="h-6 w-6" />
 							</Pressable>
 
 							<BookActionMenu data={book} />
@@ -297,12 +300,10 @@ export default function Screen() {
 							{book.resolvedName}
 						</Heading>
 
-						{seriesName && book.seriesPosition != null && (
+						{seriesName && seriesPosition != null && (
 							<Text className="text-center text-base text-foreground-muted">
-								{book.seriesPosition}
-								{book.seriesPosition > book.series.mediaCount
-									? null
-									: ` of ${book.series.mediaCount} `}
+								{seriesPosition}
+								{seriesPosition > book.series.mediaCount ? null : ` of ${book.series.mediaCount} `}
 								in {seriesName}
 							</Text>
 						)}
@@ -313,7 +314,7 @@ export default function Screen() {
 							className="flex-1 border border-edge"
 							onPress={() =>
 								router.push({
-									// @ts-expect-error: It is fine, expects string literal with [id]
+									// @ts-expect-error: It's fine
 									pathname: `/server/${serverID}/books/${bookID}/read`,
 								})
 							}

@@ -1,8 +1,6 @@
 import { FlashList } from '@shopify/flash-list'
 import { useInfiniteSuspenseGraphQL } from '@stump/client'
 import { graphql } from '@stump/graphql'
-import { useNavigation } from 'expo-router'
-import { ChevronLeft } from 'lucide-react-native'
 import { useCallback } from 'react'
 import { Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,7 +11,7 @@ import { useGridItemSize } from '~/components/grid/useGridItemSize'
 import { LibraryGridItem } from '~/components/library'
 import { ILibraryGridItemFragment } from '~/components/library/LibraryGridItem'
 import RefreshControl from '~/components/RefreshControl'
-import { useDynamicHeader } from '~/lib/hooks/useDynamicHeader'
+import { ON_END_REACHED_THRESHOLD } from '~/lib/constants'
 
 const query = graphql(`
 	query LibrariesScreen($pagination: Pagination) {
@@ -39,15 +37,6 @@ export default function Screen() {
 		activeServer: { id: serverID },
 	} = useActiveServer()
 
-	const navigation = useNavigation()
-	useDynamicHeader({
-		title: 'Libraries',
-		headerLeft:
-			Platform.OS === 'ios'
-				? () => <ChevronLeft className="text-foreground" onPress={() => navigation.goBack()} />
-				: undefined,
-	})
-
 	const { data, hasNextPage, fetchNextPage, refetch, isRefetching } = useInfiniteSuspenseGraphQL(
 		query,
 		['libraries', serverID],
@@ -72,7 +61,7 @@ export default function Screen() {
 	return (
 		<SafeAreaView
 			style={{ flex: 1 }}
-			edges={Platform.OS === 'ios' ? ['top', 'left', 'right'] : ['left', 'right']}
+			edges={['left', 'right', ...(Platform.OS === 'ios' ? [] : ['bottom' as const])]}
 		>
 			<FlashList
 				data={data?.pages.flatMap((page) => page.libraries.nodes) || []}
@@ -81,7 +70,7 @@ export default function Screen() {
 					padding: 16,
 				}}
 				numColumns={numColumns}
-				onEndReachedThreshold={0.75}
+				onEndReachedThreshold={ON_END_REACHED_THRESHOLD}
 				onEndReached={onEndReached}
 				ItemSeparatorComponent={() => <View style={{ height: gap * 2 }} />}
 				contentInsetAdjustmentBehavior="automatic"
