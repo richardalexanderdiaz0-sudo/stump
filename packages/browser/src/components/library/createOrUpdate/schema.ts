@@ -193,6 +193,7 @@ export const buildSchema = (
 			)
 			.optional(),
 		thumbnailConfig,
+		processThumbnailColorsEvenWithoutConfig: z.boolean().default(false),
 	})
 export type CreateOrUpdateLibrarySchema = z.infer<ReturnType<typeof buildSchema>>
 
@@ -221,6 +222,8 @@ export const formDefaults = (
 	scanAfterPersist: true,
 	tags: library?.tags?.map((t) => ({ label: t.name, value: t.name.toLowerCase() })),
 	thumbnailConfig: intoFormThumbnailConfig(library?.config.thumbnailConfig),
+	processThumbnailColorsEvenWithoutConfig:
+		library?.config.processThumbnailColorsEvenWithoutConfig ?? false,
 })
 
 // TODO: Investigate https://the-guild.dev/graphql/codegen/plugins/typescript/typescript-validation-schema

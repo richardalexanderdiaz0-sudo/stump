@@ -281,13 +281,14 @@ impl Library {
 		let service = ctx.data::<ServiceContext>()?;
 
 		// TODO: Spawn a blocking task to get the image dimensions
-		// Use a cache as to not read the file system every time
+		// Use a cache as to not read the file system every time?
 
 		Ok(ImageRef {
 			url: service
 				.format_url(format!("/api/v2/library/{}/thumbnail", self.model.id)),
 			// height: page_dimension.as_ref().map(|dim| dim.height),
 			// width: page_dimension.as_ref().map(|dim| dim.width),
+			metadata: self.model.thumbnail_meta.clone(),
 			..Default::default()
 		})
 	}

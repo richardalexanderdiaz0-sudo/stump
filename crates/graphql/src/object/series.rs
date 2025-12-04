@@ -306,6 +306,7 @@ impl Series {
 				.format_url(format!("/api/v2/series/{}/thumbnail", self.model.id)),
 			// height: page_dimension.as_ref().map(|dim| dim.height),
 			// width: page_dimension.as_ref().map(|dim| dim.width),
+			metadata: self.model.thumbnail_meta.clone(),
 			..Default::default()
 		})
 	}

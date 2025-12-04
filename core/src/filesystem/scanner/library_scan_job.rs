@@ -16,7 +16,11 @@ use serde::{Deserialize, Serialize};
 use crate::{
 	event,
 	filesystem::{
-		image::{ThumbnailGenerationJob, ThumbnailGenerationJobParams},
+		image::{
+			PlaceholderGenerationJob, PlaceholderGenerationJobConfig,
+			PlaceholderGenerationJobScope, ThumbnailGenerationJob,
+			ThumbnailGenerationJobParams,
+		},
 		scanner::utils::safely_insert_series,
 	},
 	job::{
@@ -238,7 +242,7 @@ impl JobExt for LibraryScanJob {
 		&self,
 		ctx: &WorkerCtx,
 		output: &Self::Output,
-	) -> Result<Option<Box<dyn Executor>>, JobError> {
+	) -> Result<Option<Vec<Box<dyn Executor>>>, JobError> {
 		ctx.send_core_event(CoreEvent::JobOutput(event::JobOutput {
 			id: ctx.job_id.clone(),
 			output: CoreJobOutput::LibraryScan(output.clone()),
@@ -255,22 +259,42 @@ impl JobExt for LibraryScanJob {
 			tracing::error!(error = ?error, "Failed to handle scan completion");
 		}
 
+		let mut jobs: Vec<Box<dyn Executor>> = vec![];
+
 		match image_options {
 			Some(options) if did_create | did_update => {
 				tracing::trace!("Thumbnail generation job should be enqueued");
-				Ok(Some(WrappedJob::new(ThumbnailGenerationJob {
+				jobs.push(WrappedJob::new(ThumbnailGenerationJob {
 					options,
-					params: ThumbnailGenerationJobParams::single_library(
+					params: ThumbnailGenerationJobParams::books_in_library(
 						self.id.clone(),
 						false,
 					),
-				})))
+				}));
 			},
 			_ => {
 				tracing::debug!("No cleanup required for library scan job");
-				Ok(None)
 			},
 		}
+
+		let process_even_without_config = self
+			.config
+			.as_ref()
+			.map(|c| c.process_thumbnail_colors_even_without_config)
+			.unwrap_or(false);
+
+		if process_even_without_config {
+			tracing::trace!("Thumbnail color processing job should be enqueued");
+			jobs.push(
+				PlaceholderGenerationJob::new(PlaceholderGenerationJobConfig::new(
+					PlaceholderGenerationJobScope::BooksInLibrary(self.id.clone()),
+					false,
+				))
+				.wrapped(),
+			);
+		}
+
+		Ok((!jobs.is_empty()).then_some(jobs))
 	}
 
 	async fn execute_task(

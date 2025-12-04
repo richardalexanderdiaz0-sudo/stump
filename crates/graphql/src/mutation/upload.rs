@@ -7,12 +7,15 @@ use async_graphql::{
 	Context, Error, InputObject, Object, Result, Upload, UploadValue, ID,
 };
 use models::{
-	entity::{library, media, series},
+	entity::{library, library_config, media, series},
 	shared::enums::UserPermission,
 };
-use sea_orm::{prelude::*, QuerySelect};
+use sea_orm::{prelude::*, sea_query::Query};
 use stump_core::filesystem::{
-	image::{place_thumbnail, remove_thumbnails},
+	image::{
+		place_thumbnail, remove_thumbnails, ThumbnailGenerationJob,
+		ThumbnailGenerationJobParams,
+	},
 	scanner::LibraryScanJob,
 	ContentType,
 };
@@ -177,12 +180,11 @@ impl UploadMutation {
 	) -> Result<Library> {
 		let AuthContext { user, .. } = ctx.data()?;
 		let core = ctx.data::<CoreContext>()?;
-		let conn = core.conn.as_ref();
 
-		let library = library::Entity::find_for_user(user)
-			.select_only()
+		let (library, config) = library::Entity::find_for_user(user)
 			.filter(library::Column::Id.eq(id.to_string()))
-			.one(conn)
+			.find_also_related(library_config::Entity)
+			.one(core.conn.as_ref())
 			.await?
 			.ok_or("Library not found")?;
 
@@ -215,7 +217,27 @@ impl UploadMutation {
 
 		let path_buf =
 			place_thumbnail(&library.id, &extension, &image_buf, &core.config).await?;
+
 		tracing::debug!(?path_buf, "Placed library thumbnail");
+
+		library::Entity::update_many()
+			.col_expr(
+				library::Column::ThumbnailPath,
+				Expr::value(Some(path_buf.to_string_lossy().to_string())),
+			)
+			.filter(library::Column::Id.eq(library.id.clone()))
+			.exec(core.conn.as_ref())
+			.await?;
+
+		let config = config.ok_or("Library config not found")?;
+		let force_regenerate = true;
+
+		if let Err(e) = core.enqueue_job(ThumbnailGenerationJob::new(
+			config.thumbnail_config.unwrap_or_default(),
+			ThumbnailGenerationJobParams::library(library.id.clone(), force_regenerate),
+		)) {
+			tracing::error!(?e, "Failed to enqueue thumbnail generation job");
+		}
 
 		Ok(library.into())
 	}
@@ -273,7 +295,36 @@ impl UploadMutation {
 		let path_buf =
 			place_thumbnail(&series.series.id, &extension, &image_buf, &core.config)
 				.await?;
+
 		tracing::debug!(?path_buf, "Placed series thumbnail");
+
+		series::Entity::update_many()
+			.col_expr(
+				series::Column::ThumbnailPath,
+				Expr::value(Some(path_buf.to_string_lossy().to_string())),
+			)
+			.filter(series::Column::Id.eq(series.series.id.clone()))
+			.exec(core.conn.as_ref())
+			.await?;
+
+		let config = library_config::Entity::find()
+			.filter(
+				library_config::Column::LibraryId.eq(series.series.library_id.clone()),
+			)
+			.one(core.conn.as_ref())
+			.await?
+			.ok_or("Library config not found")?;
+		let force_regenerate = true;
+
+		if let Err(e) = core.enqueue_job(ThumbnailGenerationJob::new(
+			config.thumbnail_config.unwrap_or_default(),
+			ThumbnailGenerationJobParams::series(
+				vec![series.series.id.clone()],
+				force_regenerate,
+			),
+		)) {
+			tracing::error!(?e, "Failed to enqueue thumbnail generation job");
+		}
 
 		Ok(series.into())
 	}
@@ -329,7 +380,42 @@ impl UploadMutation {
 
 		let path_buf =
 			place_thumbnail(&book.media.id, &extension, &image_buf, &core.config).await?;
+
 		tracing::debug!(?path_buf, "Placed book thumbnail");
+
+		media::Entity::update_many()
+			.col_expr(
+				media::Column::ThumbnailPath,
+				Expr::value(Some(path_buf.to_string_lossy().to_string())),
+			)
+			.filter(media::Column::Id.eq(book.media.id.clone()))
+			.exec(core.conn.as_ref())
+			.await?;
+
+		let config = library_config::Entity::find()
+			.filter(
+				library_config::Column::LibraryId.in_subquery(
+					Query::select()
+						.column(series::Column::LibraryId)
+						.from(series::Entity)
+						.and_where(series::Column::Id.eq(book.media.series_id.clone()))
+						.to_owned(),
+				),
+			)
+			.one(core.conn.as_ref())
+			.await?
+			.ok_or("Library config not found")?;
+		let force_regenerate = true;
+
+		if let Err(e) = core.enqueue_job(ThumbnailGenerationJob::new(
+			config.thumbnail_config.unwrap_or_default(),
+			ThumbnailGenerationJobParams::books(
+				vec![book.media.id.clone()],
+				force_regenerate,
+			),
+		)) {
+			tracing::error!(?e, "Failed to enqueue thumbnail generation job");
+		}
 
 		Ok(book.into())
 	}

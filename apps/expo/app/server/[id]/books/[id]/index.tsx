@@ -16,8 +16,7 @@ import { BookMetaLink } from '~/components/book'
 import { BookActionMenu } from '~/components/book/overview'
 import { InfoRow, InfoSection, InfoStat } from '~/components/book/overview'
 import LongValue from '~/components/book/overview/longValue/LongValue'
-import { BorderAndShadow } from '~/components/BorderAndShadow'
-import { TurboImage } from '~/components/Image'
+import { ThumbnailImage } from '~/components/image'
 import RefreshControl from '~/components/RefreshControl'
 import { Button, Heading, Text } from '~/components/ui'
 import { Icon } from '~/components/ui/icon'
@@ -108,6 +107,14 @@ const query = graphql(`
 			size
 			thumbnail {
 				url
+				metadata {
+					averageColor
+					colors {
+						color
+						percentage
+					}
+					thumbhash
+				}
 			}
 		}
 	}
@@ -165,6 +172,7 @@ export default function Screen() {
 			metadata: book.metadata || undefined,
 			bookName: book.resolvedName,
 			readProgress: book.readProgress,
+			thumbnailMeta: book.thumbnail.metadata || undefined,
 		})
 	}, [isDownloaded, downloadBook, book, isDownloading])
 
@@ -192,6 +200,8 @@ export default function Screen() {
 	}, [navigation, book, bookID])
 
 	if (!book) return null
+
+	const { url: uri, metadata: placeholderData } = book.thumbnail
 
 	const progression = book.readProgress || null
 	const lastCompletion = book.readHistory?.at(0) || null
@@ -323,22 +333,19 @@ export default function Screen() {
 					)}
 
 					<View className="flex items-center gap-4">
-						<BorderAndShadow
-							style={{ borderRadius: 10, borderWidth: 0.4, shadowRadius: 5, elevation: 8 }}
-						>
-							<TurboImage
-								source={{
-									uri: book.thumbnail.url,
-									headers: {
-										...sdk.customHeaders,
-										Authorization: sdk.authorizationHeader || '',
-									},
-								}}
-								resizeMode="stretch"
-								resize={235 * 1.5}
-								style={{ height: 235 / thumbnailRatio, width: 235 }}
-							/>
-						</BorderAndShadow>
+						<ThumbnailImage
+							source={{
+								uri,
+								headers: {
+									...sdk.customHeaders,
+									Authorization: sdk.authorizationHeader || '',
+								},
+							}}
+							resizeMode="stretch"
+							size={{ height: 235 / thumbnailRatio, width: 235 }}
+							placeholderData={placeholderData}
+							borderAndShadowStyle={{ shadowRadius: 5 }}
+						/>
 					</View>
 
 					<View className="gap-2">

@@ -88,6 +88,10 @@ const light = {
 		start: 'hsla(0, 0%, 100%, 0.6)',
 		end: 'hsla(0, 0%, 100%, 0)',
 	},
+	thumbnail: {
+		border: 'rgba(31, 33, 35, 0.10)',
+		placeholder: '#F2F2F2',
+	},
 }
 
 type Theme = typeof light
@@ -163,6 +167,10 @@ const dark: Theme = {
 	header: {
 		start: 'hsla(0, 0%, 0%, 0.8)',
 		end: 'hsla(0, 0%, 0%, 0)',
+	},
+	thumbnail: {
+		border: 'rgba(233, 234, 235, 0.10)',
+		placeholder: '#1C1C1C',
 	},
 }
 
