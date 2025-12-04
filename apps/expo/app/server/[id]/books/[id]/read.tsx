@@ -39,6 +39,14 @@ export const query = graphql(`
 			extension
 			thumbnail {
 				url
+				metadata {
+					averageColor
+					thumbhash
+					colors {
+						color
+						percentage
+					}
+				}
 			}
 			readProgress {
 				percentageCompleted
@@ -84,7 +92,7 @@ export const query = graphql(`
 				publisher
 				summary
 			}
-			pageAnalysis {
+			analysisData {
 				dimensions {
 					height
 					width

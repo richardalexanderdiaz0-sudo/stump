@@ -234,7 +234,7 @@ input ComputedFilterReadingStatus @oneOf {
 "An event that is emitted by the core and consumed by a client"
 union CoreEvent = JobStarted | JobUpdate | JobOutput | DiscoveredMissingLibrary | CreatedMedia | CreatedManySeries | CreatedOrUpdatedManyMedia
 
-union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | ExternalJobOutput
+union CoreJobOutput = LibraryScanOutput | SeriesScanOutput | ThumbnailGenerationOutput | PlaceholderGenerationOutput | ExternalJobOutput
 
 input CreateBookClubInput {
 	name: String!
@@ -600,6 +600,17 @@ type FinishedReadingSessionModel {
 	elapsedSeconds: Int
 }
 
+type ImageColor {
+	color: String!
+	percentage: Decimal!
+}
+
+type ImageMetadata {
+	averageColor: String
+	colors: [ImageColor!]!
+	thumbhash: String
+}
+
 "Options for processing images throughout Stump."
 type ImageProcessorOptions {
 	"The size factor to use when generating an image. See [`ImageResizeOptions`]"
@@ -636,6 +647,7 @@ type ImageRef {
 	url: String!
 	height: Int
 	width: Int
+	metadata: ImageMetadata
 }
 
 "The resize options to use when generating an image"
@@ -739,6 +751,8 @@ type Library {
 	description: String
 	path: String!
 	status: FileStatus!
+	thumbnailMeta: ImageMetadata
+	thumbnailPath: String
 	createdAt: DateTime!
 	updatedAt: DateTime
 	emoji: String
@@ -775,6 +789,7 @@ type LibraryConfig {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	processThumbnailColorsEvenWithoutConfig: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
 	ignoreRules: [String!]
@@ -789,6 +804,7 @@ input LibraryConfigInput {
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
 	thumbnailConfig: ImageProcessorOptionsInput
+	processThumbnailColorsEvenWithoutConfig: Boolean!
 	defaultReadingDir: ReadingDirection!
 	defaultReadingMode: ReadingMode!
 	defaultReadingImageScaleFit: ReadingImageScaleFit!
@@ -815,6 +831,8 @@ enum LibraryModelOrdering {
 	DESCRIPTION
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	CREATED_AT
 	UPDATED_AT
 	EMOJI
@@ -954,6 +972,10 @@ type Media {
 	if it is available on disk)
 	"""
 	status: FileStatus!
+	"The metadata for the thumbnail image of the media"
+	thumbnailMeta: ImageMetadata
+	"The path to the thumbnail image of the media on disk"
+	thumbnailPath: String
 	"""
 	The unique identifier of the series that the media belongs to. While this is nullable, it is
 	expected that all media will belong to a series
@@ -973,7 +995,7 @@ type Media {
 	libraryId: String!
 	library: Library!
 	libraryConfig: LibraryConfig!
-	pageAnalysis: PageAnalysis
+	analysisData: MediaAnalysisData
 	"""
 	A reference to the thumbnail image for the media. This will be a fully
 	qualified URL to the image.
@@ -995,6 +1017,11 @@ type Media {
 	on a mobile device.
 	"""
 	relativeLibraryPath: String!
+}
+
+type MediaAnalysisData {
+	dimensions: [PageDimension!]!
+	contentTypes: [String!]!
 }
 
 type MediaAnnotationsModel {
@@ -1202,6 +1229,8 @@ enum MediaModelOrdering {
 	KOREADER_HASH
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	SERIES_ID
 	DELETED_AT
 }
@@ -1282,7 +1311,7 @@ type Mutation {
 	createOrUpdateBookmark(input: BookmarkInput!): Bookmark!
 	"Delete a bookmark by epubcfi. The user must be the owner of the bookmark."
 	deleteBookmark(epubcfi: String!): Bookmark!
-	analyzeMedia(id: ID!): Boolean!
+	analyzeMedia(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	convertMedia(id: ID!): Boolean!
 	deleteMedia(id: ID!): Media!
 	favoriteMedia(id: ID!, isFavorite: Boolean!): Media!
@@ -1301,7 +1330,7 @@ type Mutation {
 	deleteMediaReadHistory(id: ID!): Media!
 	updateMediaProgress(id: ID!, input: MediaProgressInput!): ReadingProgressOutput!
 	markMediaAsComplete(id: ID!, isComplete: Boolean!, page: Int): FinishedReadingSessionModel
-	analyzeLibrary(id: ID!): Boolean!
+	analyzeLibrary(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	"""
 	Delete media and series from a library that match one of the following conditions:
 	
@@ -1349,6 +1378,7 @@ type Mutation {
 	"""
 	deleteLibrary(id: ID!): Library!
 	generateLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
+	processLibraryThumbnails(id: ID!, forceRegenerate: Boolean! = false): Boolean!
 	deleteLibraryThumbnails(id: ID!): Boolean!
 	"""
 	Enqueue a scan job for a library. This will index the filesystem from the library's root path
@@ -1386,7 +1416,7 @@ type Mutation {
 	A result containing the deleted reading list, or an error if deletion failed.
 	"""
 	deleteReadingList(id: String!): ReadingList!
-	analyzeSeries(id: ID!): Boolean!
+	analyzeSeries(id: ID!, forceReanalysis: Boolean! = false): Boolean!
 	favoriteSeries(id: ID!, isFavorite: Boolean!): Series!
 	"""
 	Update the thumbnail for a series. This will replace the existing thumbnail with the the one
@@ -1550,11 +1580,6 @@ enum OrderDirection {
 	DESC
 }
 
-"A struct containing the various analyses of a book in Stump, e.g., page dimensions."
-type PageAnalysis {
-	dimensions: [PageDimension!]!
-}
-
 input PageBasedThumbnailInput {
 	"The page to pull inside the media file for generating the thumbnail"
 	page: Int!
@@ -1647,6 +1672,15 @@ input Pagination @oneOf {
 }
 
 union PaginationInfo = CursorPaginationInfo | OffsetPaginationInfo
+
+type PlaceholderGenerationOutput {
+	"The total number of entities that were visited"
+	visitedEntities: Int!
+	"The number of entities that were skipped (already had metadata or no thumbnail file)"
+	skippedEntities: Int!
+	"The number of placeholder metadata entries that were generated"
+	generatedMetadata: Int!
+}
 
 type Query {
 	apiKeys: [Apikey!]!
@@ -1944,6 +1978,8 @@ type Series {
 	deletedAt: DateTime
 	path: String!
 	status: FileStatus!
+	thumbnailMeta: ImageMetadata
+	thumbnailPath: String
 	libraryId: String
 	metadata: SeriesMetadata
 	isFavorite: Boolean!
@@ -2060,6 +2096,8 @@ enum SeriesModelOrdering {
 	DELETED_AT
 	PATH
 	STATUS
+	THUMBNAIL_META
+	THUMBNAIL_PATH
 	LIBRARY_ID
 }
 

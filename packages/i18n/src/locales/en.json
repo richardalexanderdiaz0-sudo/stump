@@ -467,6 +467,7 @@
 				"none": "None",
 				"labels": {
 					"generateThumbnails": "Generate thumbnails",
+					"processThumbnailColors": "Process thumbnail colors",
 					"mode": "Mode",
 					"format": "Format",
 					"quality": "Quality",
