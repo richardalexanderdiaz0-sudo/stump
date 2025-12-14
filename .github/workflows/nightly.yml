@@ -3,10 +3,10 @@ name: 'Stump Nightly CI'
 on:
   pull_request:
     branches:
-      - develop
+      - nightly
   push:
     branches:
-      - develop
+      - nightly
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,7 +26,7 @@ jobs:
       - uses: dorny/paths-filter@v2
         id: filter
         with:
-          base: 'develop'
+          base: 'nightly'
           filters: |
             apps: ./apps/**
             core: ./core/**
