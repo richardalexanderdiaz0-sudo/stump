@@ -4724,21 +4724,6 @@ export type UserTableQuery = { __typename?: 'Query', users: { __typename?: 'Pagi
 
 export type SmartListCardFragment = { __typename?: 'SmartList', id: string, description?: string | null, filters: string, joiner: SmartListJoiner, name: string } & { ' $fragmentName'?: 'SmartListCardFragment' };
 
-export type CreateSmartListViewMutationVariables = Exact<{
-  input: SaveSmartListView;
-}>;
-
-
-export type CreateSmartListViewMutation = { __typename?: 'Mutation', createSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
-
-export type UpdateSmartListViewMutationVariables = Exact<{
-  originalName: Scalars['String']['input'];
-  input: SaveSmartListView;
-}>;
-
-
-export type UpdateSmartListViewMutation = { __typename?: 'Mutation', updateSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
-
 export type SmartListsWithSearchQueryVariables = Exact<{
   input: SmartListsInput;
 }>;
@@ -4754,7 +4739,7 @@ export type SmartListByIdQueryVariables = Exact<{
 }>;
 
 
-export type SmartListByIdQuery = { __typename?: 'Query', smartListById?: { __typename?: 'SmartList', id: string, creatorId: string, description?: string | null, defaultGrouping: SmartListGrouping, filters: string, joiner: SmartListJoiner, name: string, visibility: EntityVisibility, views: Array<{ __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> }> } | null };
+export type SmartListByIdQuery = { __typename?: 'Query', smartListById?: { __typename?: 'SmartList', id: string, creatorId: string, description?: string | null, defaultGrouping: SmartListGrouping, filters: string, joiner: SmartListJoiner, name: string, visibility: EntityVisibility, views: Array<{ __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> }> } | null };
 
 export type SmartListMetaQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -4785,6 +4770,29 @@ export type SmartListItemsQuery = { __typename?: 'Query', smartListItems: { __ty
     )> } };
 
 export type SmartListItemBookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null, format?: string | null, identifierAmazon?: string | null, identifierCalibre?: string | null, identifierGoogle?: string | null, identifierIsbn?: string | null, identifierMobiAsin?: string | null, identifierUuid?: string | null, language?: string | null, notes?: string | null, number?: any | null, pageCount?: number | null, series?: string | null, seriesGroup?: string | null, storyArc?: string | null, storyArcNumber?: any | null, title?: string | null, titleSort?: string | null, volume?: number | null } | null } & { ' $fragmentName'?: 'SmartListItemBookMetadataFragment' };
+
+export type CreateSmartListViewMutationVariables = Exact<{
+  input: SaveSmartListView;
+}>;
+
+
+export type CreateSmartListViewMutation = { __typename?: 'Mutation', createSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, enableMultiSort?: boolean | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
+
+export type UpdateSmartListViewMutationVariables = Exact<{
+  originalName: Scalars['String']['input'];
+  input: SaveSmartListView;
+}>;
+
+
+export type UpdateSmartListViewMutation = { __typename?: 'Mutation', updateSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, enableMultiSort?: boolean | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
+
+export type DeleteSmartListViewMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
+}>;
+
+
+export type DeleteSmartListViewMutation = { __typename?: 'Mutation', deleteSmartListView: { __typename?: 'SmartListView', id: number, name: string } };
 
 export type SmartListBasicSettingsSceneQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8135,56 +8143,6 @@ export const UserTableDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UserTableQuery, UserTableQueryVariables>;
-export const CreateSmartListViewDocument = new TypedDocumentString(`
-    mutation CreateSmartListView($input: SaveSmartListView!) {
-  createSmartListView(input: $input) {
-    id
-    listId
-    name
-    bookColumns {
-      id
-      position
-    }
-    bookSorting {
-      id
-      desc
-    }
-    groupColumns {
-      id
-      position
-    }
-    groupSorting {
-      id
-      desc
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<CreateSmartListViewMutation, CreateSmartListViewMutationVariables>;
-export const UpdateSmartListViewDocument = new TypedDocumentString(`
-    mutation UpdateSmartListView($originalName: String!, $input: SaveSmartListView!) {
-  updateSmartListView(originalName: $originalName, input: $input) {
-    id
-    listId
-    name
-    bookColumns {
-      id
-      position
-    }
-    bookSorting {
-      id
-      desc
-    }
-    groupColumns {
-      id
-      position
-    }
-    groupSorting {
-      id
-      desc
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateSmartListViewMutation, UpdateSmartListViewMutationVariables>;
 export const SmartListsWithSearchDocument = new TypedDocumentString(`
     query SmartListsWithSearch($input: SmartListsInput!) {
   smartLists(input: $input) {
@@ -8237,6 +8195,7 @@ export const SmartListByIdDocument = new TypedDocumentString(`
         id
         desc
       }
+      search
     }
   }
 }
@@ -8367,6 +8326,68 @@ fragment SmartListItemBookMetadata on Media {
     volume
   }
 }`) as unknown as TypedDocumentString<SmartListItemsQuery, SmartListItemsQueryVariables>;
+export const CreateSmartListViewDocument = new TypedDocumentString(`
+    mutation CreateSmartListView($input: SaveSmartListView!) {
+  createSmartListView(input: $input) {
+    id
+    listId
+    name
+    search
+    enableMultiSort
+    bookColumns {
+      id
+      position
+    }
+    bookSorting {
+      id
+      desc
+    }
+    groupColumns {
+      id
+      position
+    }
+    groupSorting {
+      id
+      desc
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<CreateSmartListViewMutation, CreateSmartListViewMutationVariables>;
+export const UpdateSmartListViewDocument = new TypedDocumentString(`
+    mutation UpdateSmartListView($originalName: String!, $input: SaveSmartListView!) {
+  updateSmartListView(originalName: $originalName, input: $input) {
+    id
+    listId
+    name
+    search
+    enableMultiSort
+    bookColumns {
+      id
+      position
+    }
+    bookSorting {
+      id
+      desc
+    }
+    groupColumns {
+      id
+      position
+    }
+    groupSorting {
+      id
+      desc
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateSmartListViewMutation, UpdateSmartListViewMutationVariables>;
+export const DeleteSmartListViewDocument = new TypedDocumentString(`
+    mutation DeleteSmartListView($id: ID!, $name: String!) {
+  deleteSmartListView(id: $id, name: $name) {
+    id
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<DeleteSmartListViewMutation, DeleteSmartListViewMutationVariables>;
 export const SmartListBasicSettingsSceneDocument = new TypedDocumentString(`
     query SmartListBasicSettingsScene {
   smartLists(input: {mine: true}) {
