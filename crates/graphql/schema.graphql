@@ -792,6 +792,8 @@ type LibraryConfig {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
@@ -806,6 +808,8 @@ input LibraryConfigInput {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
 	thumbnailConfig: ImageProcessorOptionsInput
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	defaultReadingDir: ReadingDirection!
@@ -888,6 +892,11 @@ type LibraryStats {
 	totalBytes: Int!
 	completedBooks: Int!
 	inProgressBooks: Int!
+}
+
+enum LibraryViewMode {
+	SERIES
+	BOOKS
 }
 
 type Log {
