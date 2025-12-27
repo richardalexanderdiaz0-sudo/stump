@@ -882,6 +882,47 @@ async fn browse_series(
 
 	let link_finalizer = OPDSLinkFinalizer::from(host);
 
+	let base_url = "/opds/v2.0/series";
+	let next_page = pagination.next_page();
+	let previous_link = match pagination.previous_page() {
+		Some(page) => Some(
+			link_finalizer.finalize(OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href(format!("{base_url}?page={page}"))
+					.rel(OPDSLinkRel::Previous.item())
+					.build()?,
+			)),
+		),
+		None => None,
+	};
+	let has_more = (pagination.offset() + take) < series_count;
+	let next_link = (has_more).then_some(
+		link_finalizer.finalize(OPDSLink::Link(
+			OPDSBaseLinkBuilder::default()
+				.href(format!("{base_url}?page={next_page}"))
+				.rel(OPDSLinkRel::Next.item())
+				.build()?,
+		)),
+	);
+
+	let links = link_finalizer.finalize_all(chain_optional_iter(
+		[
+			OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href(base_url.to_string())
+					.rel(OPDSLinkRel::SelfLink.item())
+					.build()?,
+			),
+			OPDSLink::Link(
+				OPDSBaseLinkBuilder::default()
+					.href("/opds/v2.0/catalog".to_string())
+					.rel(OPDSLinkRel::Start.item())
+					.build()?,
+			),
+		],
+		[previous_link, next_link],
+	));
+
 	Ok(Json(
 		OPDSFeedBuilder::default()
 			.metadata(
@@ -896,20 +937,7 @@ async fn browse_series(
 					))
 					.build()?,
 			)
-			.links(link_finalizer.finalize_all(vec![
-				OPDSLink::Link(
-					OPDSBaseLinkBuilder::default()
-						.href("/opds/v2.0/series".to_string())
-						.rel(OPDSLinkRel::SelfLink.item())
-						.build()?,
-				),
-				OPDSLink::Link(
-					OPDSBaseLinkBuilder::default()
-						.href("/opds/v2.0/catalog".to_string())
-						.rel(OPDSLinkRel::Start.item())
-						.build()?,
-				),
-			]))
+			.links(links)
 			.navigation(
 				series
 					.into_iter()

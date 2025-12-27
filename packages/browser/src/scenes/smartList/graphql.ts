@@ -52,6 +52,7 @@ const listByIdQuery = graphql(`
 					id
 					desc
 				}
+				search
 			}
 		}
 	}
@@ -101,9 +102,50 @@ const smartListItemsQuery = graphql(`
 			... on SmartListUngrouped {
 				books {
 					...BookCard
-					...BookMetadata
+					...SmartListItemBookMetadata
 				}
 			}
+		}
+	}
+`)
+
+export const smartListMediaItemMetadataFragment = graphql(`
+	fragment SmartListItemBookMetadata on Media {
+		metadata {
+			ageRating
+			characters
+			colorists
+			coverArtists
+			editors
+			genres
+			inkers
+			letterers
+			links
+			pencillers
+			publisher
+			teams
+			writers
+			year
+			month
+			day
+			format
+			identifierAmazon
+			identifierCalibre
+			identifierGoogle
+			identifierIsbn
+			identifierMobiAsin
+			identifierUuid
+			language
+			notes
+			number
+			pageCount
+			series
+			seriesGroup
+			storyArc
+			storyArcNumber
+			title
+			titleSort
+			volume
 		}
 	}
 `)
@@ -213,7 +255,6 @@ export function useSmartListById({ id }: UseSmartListByIdParams): UseSmartListBy
 		},
 	)
 
-	// TODO(graphql): wrap in try/catch to handle parse errors
 	const list = useMemo(() => {
 		if (listUnparsed) {
 			const filtersFromJson = JSON.parse(listUnparsed.filters) as Array<SmartListFilterGroupInput>

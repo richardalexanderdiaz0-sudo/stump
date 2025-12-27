@@ -763,10 +763,13 @@ type Library {
 	isFavorite: Boolean!
 	"Get the details of the last scan job for this library, if any exists."
 	lastScan: LibraryScanRecord
+	"Get media in this library"
+	media(take: Int = null): [Media!]!
 	mediaAlphabet: JSONObject!
 	"Get the full history of scan jobs for this library."
 	scanHistory: [LibraryScanRecord!]!
-	series: [Series!]!
+	"Get series in this library"
+	series(take: Int = null): [Series!]!
 	seriesAlphabet: JSONObject!
 	stats(allUsers: Boolean): LibraryStats!
 	tags: [Tag!]!
@@ -789,6 +792,8 @@ type LibraryConfig {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	libraryId: String
 	thumbnailConfig: ImageProcessorOptions
@@ -803,6 +808,8 @@ input LibraryConfigInput {
 	processMetadata: Boolean!
 	watch: Boolean!
 	libraryPattern: LibraryPattern!
+	defaultLibraryViewMode: LibraryViewMode!
+	hideSeriesView: Boolean!
 	thumbnailConfig: ImageProcessorOptionsInput
 	processThumbnailColorsEvenWithoutConfig: Boolean!
 	defaultReadingDir: ReadingDirection!
@@ -873,10 +880,10 @@ type LibraryScanOutput {
 
 type LibraryScanRecord {
 	id: Int!
-	options: JSON
 	timestamp: DateTime!
 	libraryId: String!
 	jobId: String
+	options: JSON
 }
 
 type LibraryStats {
@@ -885,6 +892,11 @@ type LibraryStats {
 	totalBytes: Int!
 	completedBooks: Int!
 	inProgressBooks: Int!
+}
+
+enum LibraryViewMode {
+	SERIES
+	BOOKS
 }
 
 type Log {
@@ -1426,7 +1438,13 @@ type Mutation {
 	updateSeriesThumbnail(id: ID!, input: UpdateThumbnailInput!): Series!
 	updateSeriesMetadata(id: ID!, input: SeriesMetadataInput!): Series!
 	resetSeriesMetadata(id: ID!, impact: MetadataResetImpact!): Series!
-	markSeriesAsComplete(id: ID!): Series!
+	"""
+	Toggle the completion status of a series. If the series is marked as completed, all books
+	in the series will also be marked as completed, and vice versa for marking as not completed.
+	This is considered a dangerous operation since it can modify all your read progression related
+	to a single series all at once. Please use with caution.
+	"""
+	toggleSeriesCompletion(id: ID!, isCompleted: Boolean!): Series!
 	scanSeries(id: ID!): Boolean!
 	"""
 	Returns a list containing the newly created tags, or an error if creation failed.
@@ -1463,7 +1481,7 @@ type Mutation {
 	sendAttachmentEmail(input: SendAttachmentEmailsInput!): SendAttachmentEmailOutput!
 	createEmailDevice(input: EmailDeviceInput!): RegisteredEmailDevice!
 	updateEmailDevice(id: Int!, input: EmailDeviceInput!): RegisteredEmailDevice!
-	patchEmailDevice(id: Int!, input: EmailDeviceInput!): Int!
+	patchEmailDevice(id: Int!, input: PatchEmailDeviceInput!): RegisteredEmailDevice!
 	deleteEmailDevice(id: Int!): RegisteredEmailDevice!
 	createSmartListView(input: SaveSmartListView!): SmartListView!
 	updateSmartListView(originalName: String!, input: SaveSmartListView!): SmartListView!
@@ -1672,6 +1690,12 @@ input Pagination @oneOf {
 }
 
 union PaginationInfo = CursorPaginationInfo | OffsetPaginationInfo
+
+input PatchEmailDeviceInput {
+	name: String
+	email: String
+	forbidden: Boolean
+}
 
 type PlaceholderGenerationOutput {
 	"The total number of entities that were visited"
@@ -1986,7 +2010,8 @@ type Series {
 	resolvedName: String!
 	resolvedDescription: String
 	library: Library!
-	media: [Media!]!
+	"Get media in this series"
+	media(take: Int = null): [Media!]!
 	mediaCount: Int!
 	mediaAlphabet: JSONObject!
 	upNext(take: Int! = 1, cursor: String): [Media!]!
@@ -2274,7 +2299,7 @@ type StumpConfig {
 	profile: String!
 	"The port from which to serve the application (default: 10801)."
 	port: Int!
-	"The verbosity with which to log errors (default: 0)."
+	"The verbosity with which system logs are visible (default: 1)."
 	verbosity: Int!
 	"Whether or not to pretty print logs."
 	prettyLogs: Boolean!

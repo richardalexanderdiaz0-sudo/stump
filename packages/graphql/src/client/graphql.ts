@@ -806,11 +806,14 @@ export type Library = {
   /** Get the details of the last scan job for this library, if any exists. */
   lastScan?: Maybe<LibraryScanRecord>;
   lastScannedAt?: Maybe<Scalars['DateTime']['output']>;
+  /** Get media in this library */
+  media: Array<Media>;
   mediaAlphabet: Scalars['JSONObject']['output'];
   name: Scalars['String']['output'];
   path: Scalars['String']['output'];
   /** Get the full history of scan jobs for this library. */
   scanHistory: Array<LibraryScanRecord>;
+  /** Get series in this library */
   series: Array<Series>;
   seriesAlphabet: Scalars['JSONObject']['output'];
   stats: LibraryStats;
@@ -827,6 +830,16 @@ export type Library = {
 };
 
 
+export type LibraryMediaArgs = {
+  take?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type LibrarySeriesArgs = {
+  take?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type LibraryStatsArgs = {
   allUsers?: InputMaybe<Scalars['Boolean']['input']>;
 };
@@ -834,12 +847,14 @@ export type LibraryStatsArgs = {
 export type LibraryConfig = {
   __typename?: 'LibraryConfig';
   convertRarToZip: Scalars['Boolean']['output'];
+  defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;
   defaultReadingImageScaleFit: ReadingImageScaleFit;
   defaultReadingMode: ReadingMode;
   generateFileHashes: Scalars['Boolean']['output'];
   generateKoreaderHashes: Scalars['Boolean']['output'];
   hardDeleteConversions: Scalars['Boolean']['output'];
+  hideSeriesView: Scalars['Boolean']['output'];
   id: Scalars['Int']['output'];
   ignoreRules?: Maybe<Array<Scalars['String']['output']>>;
   libraryId?: Maybe<Scalars['String']['output']>;
@@ -852,12 +867,14 @@ export type LibraryConfig = {
 
 export type LibraryConfigInput = {
   convertRarToZip: Scalars['Boolean']['input'];
+  defaultLibraryViewMode: LibraryViewMode;
   defaultReadingDir: ReadingDirection;
   defaultReadingImageScaleFit: ReadingImageScaleFit;
   defaultReadingMode: ReadingMode;
   generateFileHashes: Scalars['Boolean']['input'];
   generateKoreaderHashes: Scalars['Boolean']['input'];
   hardDeleteConversions: Scalars['Boolean']['input'];
+  hideSeriesView: Scalars['Boolean']['input'];
   ignoreRules?: InputMaybe<Array<Scalars['String']['input']>>;
   libraryPattern: LibraryPattern;
   processMetadata: Scalars['Boolean']['input'];
@@ -944,6 +961,12 @@ export type LibraryStats = {
   seriesCount: Scalars['Int']['output'];
   totalBytes: Scalars['Int']['output'];
 };
+
+/** The default view mode for a library, controlling which tab is shown when navigating to a library */
+export enum LibraryViewMode {
+  Books = 'BOOKS',
+  Series = 'SERIES'
+}
 
 export type Log = {
   __typename?: 'Log';
@@ -1457,8 +1480,7 @@ export type Mutation = {
   /** Deletes the membership of the caller to the target book club */
   leaveBookClub: BookClubMember;
   markMediaAsComplete?: Maybe<FinishedReadingSessionModel>;
-  markSeriesAsComplete: Series;
-  patchEmailDevice: Scalars['Int']['output'];
+  patchEmailDevice: RegisteredEmailDevice;
   processLibraryThumbnails: Scalars['Boolean']['output'];
   /** Removes a member from the book club */
   removeBookClubMember: BookClubMember;
@@ -1472,6 +1494,13 @@ export type Mutation = {
   scanLibrary: Scalars['Boolean']['output'];
   scanSeries: Scalars['Boolean']['output'];
   sendAttachmentEmail: SendAttachmentEmailOutput;
+  /**
+   * Toggle the completion status of a series. If the series is marked as completed, all books
+   * in the series will also be marked as completed, and vice versa for marking as not completed.
+   * This is considered a dangerous operation since it can modify all your read progression related
+   * to a single series all at once. Please use with caution.
+   */
+  toggleSeriesCompletion: Series;
   updateApiKey: Apikey;
   updateBookClub: BookClub;
   updateEmailDevice: RegisteredEmailDevice;
@@ -1814,14 +1843,9 @@ export type MutationMarkMediaAsCompleteArgs = {
 };
 
 
-export type MutationMarkSeriesAsCompleteArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type MutationPatchEmailDeviceArgs = {
   id: Scalars['Int']['input'];
-  input: EmailDeviceInput;
+  input: PatchEmailDeviceInput;
 };
 
 
@@ -1868,6 +1892,12 @@ export type MutationScanSeriesArgs = {
 
 export type MutationSendAttachmentEmailArgs = {
   input: SendAttachmentEmailsInput;
+};
+
+
+export type MutationToggleSeriesCompletionArgs = {
+  id: Scalars['ID']['input'];
+  isCompleted: Scalars['Boolean']['input'];
 };
 
 
@@ -2247,6 +2277,12 @@ export type Pagination =
   |  { cursor?: never; none?: never; offset: OffsetPagination; };
 
 export type PaginationInfo = CursorPaginationInfo | OffsetPaginationInfo;
+
+export type PatchEmailDeviceInput = {
+  email?: InputMaybe<Scalars['String']['input']>;
+  forbidden?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
 
 export type PlaceholderGenerationOutput = {
   __typename?: 'PlaceholderGenerationOutput';
@@ -2750,6 +2786,7 @@ export type Series = {
   isFavorite: Scalars['Boolean']['output'];
   library: Library;
   libraryId?: Maybe<Scalars['String']['output']>;
+  /** Get media in this series */
   media: Array<Media>;
   mediaAlphabet: Scalars['JSONObject']['output'];
   mediaCount: Scalars['Int']['output'];
@@ -2772,6 +2809,11 @@ export type Series = {
   unreadCount: Scalars['Int']['output'];
   upNext: Array<Media>;
   updatedAt?: Maybe<Scalars['DateTime']['output']>;
+};
+
+
+export type SeriesMediaArgs = {
+  take?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -3127,7 +3169,7 @@ export type StumpConfig = {
   refreshTokenTtl: Scalars['Int']['output'];
   /** The time in seconds that a login session will be valid for. */
   sessionTtl: Scalars['Int']['output'];
-  /** The verbosity with which to log errors (default: 0). */
+  /** The verbosity with which system logs are visible (default: 1). */
   verbosity: Scalars['Int']['output'];
 };
 
@@ -3688,7 +3730,7 @@ export type LibraryActionMenuScanLibraryMutationVariables = Exact<{
 
 export type LibraryActionMenuScanLibraryMutation = { __typename?: 'Mutation', scanLibrary: boolean };
 
-export type LibraryGridItemFragment = { __typename?: 'Library', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } } & { ' $fragmentName'?: 'LibraryGridItemFragment' };
+export type LibraryGridItemFragment = { __typename?: 'Library', id: string, name: string, series: Array<{ __typename?: 'Series', thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }> } & { ' $fragmentName'?: 'LibraryGridItemFragment' };
 
 export type LibrarySearchItemFragment = { __typename?: 'Library', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } } & { ' $fragmentName'?: 'LibrarySearchItemFragment' };
 
@@ -3702,7 +3744,7 @@ export type RecentlyAddedSeriesGridQuery = { __typename?: 'Query', series: { __t
       & { ' $fragmentRefs'?: { 'SeriesGridItemFragment': SeriesGridItemFragment } }
     )>, pageInfo: { __typename: 'CursorPaginationInfo' } | { __typename: 'OffsetPaginationInfo', totalPages: number, currentPage: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
 
-export type RecentlyAddedSeriesItemFragment = { __typename?: 'Series', id: string, resolvedName: string, readCount: number, mediaCount: number, createdAt: any, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } } & { ' $fragmentName'?: 'RecentlyAddedSeriesItemFragment' };
+export type RecentlyAddedSeriesItemFragment = { __typename?: 'Series', id: string, resolvedName: string, readCount: number, mediaCount: number, createdAt: any, media: Array<{ __typename?: 'Media', resolvedName: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }> } & { ' $fragmentName'?: 'RecentlyAddedSeriesItemFragment' };
 
 export type SeriesGridItemFragment = { __typename?: 'Series', id: string, resolvedName: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } } & { ' $fragmentName'?: 'SeriesGridItemFragment' };
 
@@ -3861,10 +3903,20 @@ export type TopNavigationQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type TopNavigationQuery = { __typename?: 'Query', me: { __typename?: 'User', id: string, preferences: { __typename?: 'UserPreferences', navigationArrangement: { __typename?: 'Arrangement', locked: boolean, sections: Array<{ __typename?: 'ArrangementSection', visible: boolean, config: { __typename: 'CustomArrangementConfig' } | { __typename: 'InProgressBooks' } | { __typename: 'RecentlyAdded' } | { __typename: 'SystemArrangementConfig', variant: SystemArrangement, links: Array<FilterableArrangementEntityLink> } }> } } } };
 
+export type BookClubNavigationItemQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type BookClubNavigationItemQuery = { __typename?: 'Query', bookClubs: Array<{ __typename?: 'BookClub', id: string, name: string, slug: string, emoji?: string | null }> };
+
 export type LibraryNavigationItemQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type LibraryNavigationItemQuery = { __typename?: 'Query', libraries: { __typename?: 'PaginatedLibraryResponse', nodes: Array<{ __typename?: 'Library', id: string, name: string, emoji?: string | null }> } };
+
+export type SmartListNavigationItemQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type SmartListNavigationItemQuery = { __typename?: 'Query', smartLists: Array<{ __typename?: 'SmartList', id: string, name: string }> };
 
 export type EpubJsReaderQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -3957,9 +4009,9 @@ export type BookLibrarySeriesLinksQueryVariables = Exact<{
 }>;
 
 
-export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, name: string, libraryId?: string | null } | null };
+export type BookLibrarySeriesLinksQuery = { __typename?: 'Query', seriesById?: { __typename?: 'Series', id: string, resolvedName: string, libraryId?: string | null } | null };
 
-export type BookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null } | null } & { ' $fragmentName'?: 'BookMetadataFragment' };
+export type BookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null } | null } & { ' $fragmentName'?: 'BookMetadataFragment' };
 
 export type BookOverviewHeaderQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -4142,6 +4194,16 @@ export type HomeSceneQueryQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type HomeSceneQueryQuery = { __typename?: 'Query', numberOfLibraries: number };
 
+export type OnDeckBooksWebQueryVariables = Exact<{
+  pagination: Pagination;
+}>;
+
+
+export type OnDeckBooksWebQuery = { __typename?: 'Query', onDeck: { __typename?: 'PaginatedMediaResponse', nodes: Array<(
+      { __typename?: 'Media', id: string }
+      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment } }
+    )>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo', currentPage: number, totalPages: number, pageSize: number, pageOffset: number, zeroBased: boolean } } };
+
 export type RecentlyAddedMediaQueryQueryVariables = Exact<{
   pagination: Pagination;
 }>;
@@ -4165,7 +4227,7 @@ export type LibraryLayoutQueryVariables = Exact<{
 
 
 export type LibraryLayoutQuery = { __typename?: 'Query', libraryById?: (
-    { __typename?: 'Library', id: string, name: string, description?: string | null, path: string, stats: { __typename?: 'LibraryStats', bookCount: number, completedBooks: number, inProgressBooks: number }, tags: Array<{ __typename?: 'Tag', id: number, name: string }>, thumbnail: { __typename?: 'ImageRef', url: string } }
+    { __typename?: 'Library', id: string, name: string, description?: string | null, path: string, stats: { __typename?: 'LibraryStats', bookCount: number, completedBooks: number, inProgressBooks: number }, tags: Array<{ __typename?: 'Tag', id: number, name: string }>, thumbnail: { __typename?: 'ImageRef', url: string }, config: { __typename?: 'LibraryConfig', defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean } }
     & { ' $fragmentRefs'?: { 'LibrarySettingsConfigFragment': LibrarySettingsConfigFragment } }
   ) | null };
 
@@ -4205,7 +4267,7 @@ export type LibrarySeriesGridQueryVariables = Exact<{
 
 export type LibrarySeriesGridQuery = { __typename?: 'Query', series: { __typename?: 'PaginatedSeriesResponse', nodes: Array<{ __typename?: 'Series', id: string, thumbnail: { __typename?: 'ImageRef', url: string } }>, pageInfo: { __typename: 'CursorPaginationInfo', currentCursor?: string | null, nextCursor?: string | null, limit: number } | { __typename: 'OffsetPaginationInfo' } } };
 
-export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, watch: boolean, libraryPattern: LibraryPattern, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
+export type LibrarySettingsConfigFragment = { __typename?: 'Library', config: { __typename?: 'LibraryConfig', id: number, convertRarToZip: boolean, hardDeleteConversions: boolean, defaultReadingDir: ReadingDirection, defaultReadingMode: ReadingMode, defaultReadingImageScaleFit: ReadingImageScaleFit, defaultLibraryViewMode: LibraryViewMode, hideSeriesView: boolean, generateFileHashes: boolean, generateKoreaderHashes: boolean, processMetadata: boolean, watch: boolean, libraryPattern: LibraryPattern, processThumbnailColorsEvenWithoutConfig: boolean, ignoreRules?: Array<string> | null, thumbnailConfig?: { __typename: 'ImageProcessorOptions', format: SupportedImageFormat, quality?: number | null, page?: number | null, resizeMethod?: { __typename: 'ExactDimensionResize', width: number, height: number } | { __typename: 'ScaleEvenlyByFactor', factor: any } | { __typename: 'ScaledDimensionResize', dimension: Dimension, size: number } | null } | null } } & { ' $fragmentName'?: 'LibrarySettingsConfigFragment' };
 
 export type LibrarySettingsRouterEditLibraryMutationMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -4504,6 +4566,13 @@ export type EmailDevicesTableQuery = { __typename?: 'Query', emailDevices: Array
 
 export type EmailerListItemFragment = { __typename?: 'Emailer', id: number, name: string, isPrimary: boolean, smtpHost: string, smtpPort: number, lastUsedAt?: any | null, maxAttachmentSizeBytes?: number | null, senderDisplayName: string, senderEmail: string, tlsEnabled: boolean, username: string } & { ' $fragmentName'?: 'EmailerListItemFragment' };
 
+export type DeleteEmailerMutationVariables = Exact<{
+  emailerId: Scalars['Int']['input'];
+}>;
+
+
+export type DeleteEmailerMutation = { __typename?: 'Mutation', deleteEmailer: { __typename?: 'Emailer', id: number } };
+
 export type EmailerSendHistoryQueryVariables = Exact<{
   id: Scalars['Int']['input'];
   fetchUser: Scalars['Boolean']['input'];
@@ -4706,21 +4775,6 @@ export type UserTableQuery = { __typename?: 'Query', users: { __typename?: 'Pagi
 
 export type SmartListCardFragment = { __typename?: 'SmartList', id: string, description?: string | null, filters: string, joiner: SmartListJoiner, name: string } & { ' $fragmentName'?: 'SmartListCardFragment' };
 
-export type CreateSmartListViewMutationVariables = Exact<{
-  input: SaveSmartListView;
-}>;
-
-
-export type CreateSmartListViewMutation = { __typename?: 'Mutation', createSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
-
-export type UpdateSmartListViewMutationVariables = Exact<{
-  originalName: Scalars['String']['input'];
-  input: SaveSmartListView;
-}>;
-
-
-export type UpdateSmartListViewMutation = { __typename?: 'Mutation', updateSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
-
 export type SmartListsWithSearchQueryVariables = Exact<{
   input: SmartListsInput;
 }>;
@@ -4736,7 +4790,7 @@ export type SmartListByIdQueryVariables = Exact<{
 }>;
 
 
-export type SmartListByIdQuery = { __typename?: 'Query', smartListById?: { __typename?: 'SmartList', id: string, creatorId: string, description?: string | null, defaultGrouping: SmartListGrouping, filters: string, joiner: SmartListJoiner, name: string, visibility: EntityVisibility, views: Array<{ __typename?: 'SmartListView', id: number, listId: string, name: string, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> }> } | null };
+export type SmartListByIdQuery = { __typename?: 'Query', smartListById?: { __typename?: 'SmartList', id: string, creatorId: string, description?: string | null, defaultGrouping: SmartListGrouping, filters: string, joiner: SmartListJoiner, name: string, visibility: EntityVisibility, views: Array<{ __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> }> } | null };
 
 export type SmartListMetaQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -4763,8 +4817,33 @@ export type SmartListItemsQuery = { __typename?: 'Query', smartListItems: { __ty
         & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
       )> }> } | { __typename: 'SmartListUngrouped', books: Array<(
       { __typename?: 'Media' }
-      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'BookMetadataFragment': BookMetadataFragment } }
+      & { ' $fragmentRefs'?: { 'BookCardFragment': BookCardFragment;'SmartListItemBookMetadataFragment': SmartListItemBookMetadataFragment } }
     )> } };
+
+export type SmartListItemBookMetadataFragment = { __typename?: 'Media', metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, editors: Array<string>, genres: Array<string>, inkers: Array<string>, letterers: Array<string>, links: Array<string>, pencillers: Array<string>, publisher?: string | null, teams: Array<string>, writers: Array<string>, year?: number | null, month?: number | null, day?: number | null, format?: string | null, identifierAmazon?: string | null, identifierCalibre?: string | null, identifierGoogle?: string | null, identifierIsbn?: string | null, identifierMobiAsin?: string | null, identifierUuid?: string | null, language?: string | null, notes?: string | null, number?: any | null, pageCount?: number | null, series?: string | null, seriesGroup?: string | null, storyArc?: string | null, storyArcNumber?: any | null, title?: string | null, titleSort?: string | null, volume?: number | null } | null } & { ' $fragmentName'?: 'SmartListItemBookMetadataFragment' };
+
+export type CreateSmartListViewMutationVariables = Exact<{
+  input: SaveSmartListView;
+}>;
+
+
+export type CreateSmartListViewMutation = { __typename?: 'Mutation', createSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, enableMultiSort?: boolean | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
+
+export type UpdateSmartListViewMutationVariables = Exact<{
+  originalName: Scalars['String']['input'];
+  input: SaveSmartListView;
+}>;
+
+
+export type UpdateSmartListViewMutation = { __typename?: 'Mutation', updateSmartListView: { __typename?: 'SmartListView', id: number, listId: string, name: string, search?: string | null, enableMultiSort?: boolean | null, bookColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, bookSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }>, groupColumns: Array<{ __typename?: 'SmartListViewColumn', id: string, position: number }>, groupSorting: Array<{ __typename?: 'SmartListViewSort', id: string, desc: boolean }> } };
+
+export type DeleteSmartListViewMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+  name: Scalars['String']['input'];
+}>;
+
+
+export type DeleteSmartListViewMutation = { __typename?: 'Mutation', deleteSmartListView: { __typename?: 'SmartListView', id: number, name: string } };
 
 export type SmartListBasicSettingsSceneQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -4936,15 +5015,17 @@ export const LibraryGridItemFragmentDoc = new TypedDocumentString(`
     fragment LibraryGridItem on Library {
   id
   name
-  thumbnail {
-    url
-    metadata {
-      averageColor
-      colors {
-        color
-        percentage
+  series(take: 5) {
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
       }
-      thumbhash
     }
   }
 }
@@ -4970,15 +5051,18 @@ export const RecentlyAddedSeriesItemFragmentDoc = new TypedDocumentString(`
     fragment RecentlyAddedSeriesItem on Series {
   id
   resolvedName
-  thumbnail {
-    url
-    metadata {
-      averageColor
-      colors {
-        color
-        percentage
+  media(take: 3) {
+    resolvedName
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
       }
-      thumbhash
     }
   }
   readCount
@@ -5129,6 +5213,8 @@ export const BookMetadataFragmentDoc = new TypedDocumentString(`
     teams
     writers
     year
+    month
+    day
   }
 }
     `, {"fragmentName":"BookMetadata"}) as unknown as TypedDocumentString<BookMetadataFragment, unknown>;
@@ -5150,6 +5236,8 @@ export const LibrarySettingsConfigFragmentDoc = new TypedDocumentString(`
     defaultReadingDir
     defaultReadingMode
     defaultReadingImageScaleFit
+    defaultLibraryViewMode
+    hideSeriesView
     generateFileHashes
     generateKoreaderHashes
     processMetadata
@@ -5244,6 +5332,46 @@ export const SmartListCardFragmentDoc = new TypedDocumentString(`
   name
 }
     `, {"fragmentName":"SmartListCard"}) as unknown as TypedDocumentString<SmartListCardFragment, unknown>;
+export const SmartListItemBookMetadataFragmentDoc = new TypedDocumentString(`
+    fragment SmartListItemBookMetadata on Media {
+  metadata {
+    ageRating
+    characters
+    colorists
+    coverArtists
+    editors
+    genres
+    inkers
+    letterers
+    links
+    pencillers
+    publisher
+    teams
+    writers
+    year
+    month
+    day
+    format
+    identifierAmazon
+    identifierCalibre
+    identifierGoogle
+    identifierIsbn
+    identifierMobiAsin
+    identifierUuid
+    language
+    notes
+    number
+    pageCount
+    series
+    seriesGroup
+    storyArc
+    storyArcNumber
+    title
+    titleSort
+    volume
+  }
+}
+    `, {"fragmentName":"SmartListItemBookMetadata"}) as unknown as TypedDocumentString<SmartListItemBookMetadataFragment, unknown>;
 export const SearchMediaDocument = new TypedDocumentString(`
     query SearchMedia($filter: MediaFilterInput!) {
   media(filter: $filter, pagination: {cursor: {limit: 10}}) {
@@ -5679,15 +5807,17 @@ export const LibrariesScreenDocument = new TypedDocumentString(`
     fragment LibraryGridItem on Library {
   id
   name
-  thumbnail {
-    url
-    metadata {
-      averageColor
-      colors {
-        color
-        percentage
+  series(take: 5) {
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
       }
-      thumbhash
     }
   }
 }`) as unknown as TypedDocumentString<LibrariesScreenQuery, LibrariesScreenQueryVariables>;
@@ -5925,15 +6055,18 @@ export const RecentlyAddedSeriesHorizontalDocument = new TypedDocumentString(`
     fragment RecentlyAddedSeriesItem on Series {
   id
   resolvedName
-  thumbnail {
-    url
-    metadata {
-      averageColor
-      colors {
-        color
-        percentage
+  media(take: 3) {
+    resolvedName
+    thumbnail {
+      url
+      metadata {
+        averageColor
+        colors {
+          color
+          percentage
+        }
+        thumbhash
       }
-      thumbhash
     }
   }
   readCount
@@ -6378,6 +6511,16 @@ export const TopNavigationDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<TopNavigationQuery, TopNavigationQueryVariables>;
+export const BookClubNavigationItemDocument = new TypedDocumentString(`
+    query BookClubNavigationItem {
+  bookClubs {
+    id
+    name
+    slug
+    emoji
+  }
+}
+    `) as unknown as TypedDocumentString<BookClubNavigationItemQuery, BookClubNavigationItemQueryVariables>;
 export const LibraryNavigationItemDocument = new TypedDocumentString(`
     query LibraryNavigationItem {
   libraries(pagination: {none: {unpaginated: true}}) {
@@ -6389,6 +6532,14 @@ export const LibraryNavigationItemDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<LibraryNavigationItemQuery, LibraryNavigationItemQueryVariables>;
+export const SmartListNavigationItemDocument = new TypedDocumentString(`
+    query SmartListNavigationItem {
+  smartLists {
+    id
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<SmartListNavigationItemQuery, SmartListNavigationItemQueryVariables>;
 export const EpubJsReaderDocument = new TypedDocumentString(`
     query EpubJsReader($id: ID!) {
   epubById(id: $id) {
@@ -6581,7 +6732,7 @@ export const BookLibrarySeriesLinksDocument = new TypedDocumentString(`
     query BookLibrarySeriesLinks($id: ID!) {
   seriesById(id: $id) {
     id
-    name
+    resolvedName
     libraryId
   }
 }
@@ -6929,6 +7080,8 @@ fragment BookMetadata on Media {
     teams
     writers
     year
+    month
+    day
   }
 }`) as unknown as TypedDocumentString<BookSearchSceneQuery, BookSearchSceneQueryVariables>;
 export const CreateLibrarySceneExistingLibrariesDocument = new TypedDocumentString(`
@@ -7014,6 +7167,51 @@ export const HomeSceneQueryDocument = new TypedDocumentString(`
   numberOfLibraries
 }
     `) as unknown as TypedDocumentString<HomeSceneQueryQuery, HomeSceneQueryQueryVariables>;
+export const OnDeckBooksWebDocument = new TypedDocumentString(`
+    query OnDeckBooksWeb($pagination: Pagination!) {
+  onDeck(pagination: $pagination) {
+    nodes {
+      id
+      ...BookCard
+    }
+    pageInfo {
+      __typename
+      ... on CursorPaginationInfo {
+        currentCursor
+        nextCursor
+        limit
+      }
+      ... on OffsetPaginationInfo {
+        currentPage
+        totalPages
+        pageSize
+        pageOffset
+        zeroBased
+      }
+    }
+  }
+}
+    fragment BookCard on Media {
+  id
+  resolvedName
+  extension
+  pages
+  size
+  status
+  thumbnail {
+    url
+  }
+  readProgress {
+    percentageCompleted
+    epubcfi
+    page
+    updatedAt
+  }
+  readHistory {
+    __typename
+    completedAt
+  }
+}`) as unknown as TypedDocumentString<OnDeckBooksWebQuery, OnDeckBooksWebQueryVariables>;
 export const RecentlyAddedMediaQueryDocument = new TypedDocumentString(`
     query RecentlyAddedMediaQuery($pagination: Pagination!) {
   recentlyAddedMedia(pagination: $pagination) {
@@ -7092,6 +7290,10 @@ export const LibraryLayoutDocument = new TypedDocumentString(`
     thumbnail {
       url
     }
+    config {
+      defaultLibraryViewMode
+      hideSeriesView
+    }
     ...LibrarySettingsConfig
   }
 }
@@ -7103,6 +7305,8 @@ export const LibraryLayoutDocument = new TypedDocumentString(`
     defaultReadingDir
     defaultReadingMode
     defaultReadingImageScaleFit
+    defaultLibraryViewMode
+    hideSeriesView
     generateFileHashes
     generateKoreaderHashes
     processMetadata
@@ -7196,6 +7400,8 @@ fragment BookMetadata on Media {
     teams
     writers
     year
+    month
+    day
   }
 }`) as unknown as TypedDocumentString<LibraryBooksSceneQuery, LibraryBooksSceneQueryVariables>;
 export const LibrarySeriesDocument = new TypedDocumentString(`
@@ -7469,6 +7675,8 @@ fragment BookMetadata on Media {
     teams
     writers
     year
+    month
+    day
   }
 }`) as unknown as TypedDocumentString<SeriesBooksSceneQuery, SeriesBooksSceneQueryVariables>;
 export const SeriesBookGridDocument = new TypedDocumentString(`
@@ -7710,6 +7918,13 @@ export const EmailDevicesTableDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<EmailDevicesTableQuery, EmailDevicesTableQueryVariables>;
+export const DeleteEmailerDocument = new TypedDocumentString(`
+    mutation DeleteEmailer($emailerId: Int!) {
+  deleteEmailer(id: $emailerId) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DeleteEmailerMutation, DeleteEmailerMutationVariables>;
 export const EmailerSendHistoryDocument = new TypedDocumentString(`
     query EmailerSendHistory($id: Int!, $fetchUser: Boolean!) {
   emailerById(id: $id) {
@@ -8061,56 +8276,6 @@ export const UserTableDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UserTableQuery, UserTableQueryVariables>;
-export const CreateSmartListViewDocument = new TypedDocumentString(`
-    mutation CreateSmartListView($input: SaveSmartListView!) {
-  createSmartListView(input: $input) {
-    id
-    listId
-    name
-    bookColumns {
-      id
-      position
-    }
-    bookSorting {
-      id
-      desc
-    }
-    groupColumns {
-      id
-      position
-    }
-    groupSorting {
-      id
-      desc
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<CreateSmartListViewMutation, CreateSmartListViewMutationVariables>;
-export const UpdateSmartListViewDocument = new TypedDocumentString(`
-    mutation UpdateSmartListView($originalName: String!, $input: SaveSmartListView!) {
-  updateSmartListView(originalName: $originalName, input: $input) {
-    id
-    listId
-    name
-    bookColumns {
-      id
-      position
-    }
-    bookSorting {
-      id
-      desc
-    }
-    groupColumns {
-      id
-      position
-    }
-    groupSorting {
-      id
-      desc
-    }
-  }
-}
-    `) as unknown as TypedDocumentString<UpdateSmartListViewMutation, UpdateSmartListViewMutationVariables>;
 export const SmartListsWithSearchDocument = new TypedDocumentString(`
     query SmartListsWithSearch($input: SmartListsInput!) {
   smartLists(input: $input) {
@@ -8163,6 +8328,7 @@ export const SmartListByIdDocument = new TypedDocumentString(`
         id
         desc
       }
+      search
     }
   }
 }
@@ -8209,7 +8375,7 @@ export const SmartListItemsDocument = new TypedDocumentString(`
     ... on SmartListUngrouped {
       books {
         ...BookCard
-        ...BookMetadata
+        ...SmartListItemBookMetadata
       }
     }
   }
@@ -8251,8 +8417,110 @@ fragment BookMetadata on Media {
     teams
     writers
     year
+    month
+    day
+  }
+}
+fragment SmartListItemBookMetadata on Media {
+  metadata {
+    ageRating
+    characters
+    colorists
+    coverArtists
+    editors
+    genres
+    inkers
+    letterers
+    links
+    pencillers
+    publisher
+    teams
+    writers
+    year
+    month
+    day
+    format
+    identifierAmazon
+    identifierCalibre
+    identifierGoogle
+    identifierIsbn
+    identifierMobiAsin
+    identifierUuid
+    language
+    notes
+    number
+    pageCount
+    series
+    seriesGroup
+    storyArc
+    storyArcNumber
+    title
+    titleSort
+    volume
   }
 }`) as unknown as TypedDocumentString<SmartListItemsQuery, SmartListItemsQueryVariables>;
+export const CreateSmartListViewDocument = new TypedDocumentString(`
+    mutation CreateSmartListView($input: SaveSmartListView!) {
+  createSmartListView(input: $input) {
+    id
+    listId
+    name
+    search
+    enableMultiSort
+    bookColumns {
+      id
+      position
+    }
+    bookSorting {
+      id
+      desc
+    }
+    groupColumns {
+      id
+      position
+    }
+    groupSorting {
+      id
+      desc
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<CreateSmartListViewMutation, CreateSmartListViewMutationVariables>;
+export const UpdateSmartListViewDocument = new TypedDocumentString(`
+    mutation UpdateSmartListView($originalName: String!, $input: SaveSmartListView!) {
+  updateSmartListView(originalName: $originalName, input: $input) {
+    id
+    listId
+    name
+    search
+    enableMultiSort
+    bookColumns {
+      id
+      position
+    }
+    bookSorting {
+      id
+      desc
+    }
+    groupColumns {
+      id
+      position
+    }
+    groupSorting {
+      id
+      desc
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<UpdateSmartListViewMutation, UpdateSmartListViewMutationVariables>;
+export const DeleteSmartListViewDocument = new TypedDocumentString(`
+    mutation DeleteSmartListView($id: ID!, $name: String!) {
+  deleteSmartListView(id: $id, name: $name) {
+    id
+    name
+  }
+}
+    `) as unknown as TypedDocumentString<DeleteSmartListViewMutation, DeleteSmartListViewMutationVariables>;
 export const SmartListBasicSettingsSceneDocument = new TypedDocumentString(`
     query SmartListBasicSettingsScene {
   smartLists(input: {mine: true}) {

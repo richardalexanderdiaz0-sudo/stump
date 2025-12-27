@@ -176,9 +176,9 @@
 				"label": "Mitgliedschaft"
 			},
 			"scheduling": {
-				"scheduler": "Scheduler",
+				"scheduler": "Planer",
 				"options": "Optionen",
-				"label": "Scheduling"
+				"label": "Planung"
 			},
 			"danger-zone": {
 				"delete": "Löschen",
@@ -208,7 +208,7 @@
 			}
 		},
 		"scheduling/scheduler": {
-			"title": "Scheduler",
+			"title": "Planer",
 			"description": "Create and manage the schedule readings for this book club"
 		},
 		"scheduling/options": {
@@ -331,6 +331,7 @@
 					}
 				},
 				"invalidGlob": "Ungültige Glob-Regel",
+				"duplicateGlob": "Duplicate of an existing rule",
 				"lockConfig": {
 					"lock": "Konfiguration sperren",
 					"unlock": "Konfiguration entsperren"
