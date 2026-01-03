@@ -50,9 +50,15 @@ type Props = {
 	fragment: FragmentType<typeof BookCardFragment>
 	readingLink?: boolean
 	onSelect?: () => void
+	fullWidth?: boolean
 }
 
-const BookCard = memo(function BookCard({ fragment, readingLink, onSelect }: Props) {
+const BookCard = memo(function BookCard({
+	fragment,
+	readingLink,
+	onSelect,
+	fullWidth = true,
+}: Props) {
 	const data = useFragment(BookCardFragment, fragment)
 	const paths = usePaths()
 
@@ -180,9 +186,10 @@ const BookCard = memo(function BookCard({ fragment, readingLink, onSelect }: Pro
 			onClick={handleClick}
 			onMouseEnter={prefetch}
 			className={cn(
-				'group relative flex w-full flex-col gap-1',
+				'group relative flex flex-col gap-1',
 				'rounded-lg border border-transparent p-1 transition-colors duration-100',
 				'focus-visible:outline-none',
+				fullWidth ? 'w-full' : 'w-[10rem] shrink-0 sm:w-[10.666rem] md:w-[12rem]',
 			)}
 		>
 			<div
@@ -221,7 +228,10 @@ const BookCard = memo(function BookCard({ fragment, readingLink, onSelect }: Pro
 			)}
 
 			<div className="flex h-[52px] flex-col gap-0.5 px-0.5">
-				<Text size="sm" className="line-clamp-2 font-medium leading-tight">
+				<Text
+					size="sm"
+					className="line-clamp-2 min-w-0 whitespace-normal font-medium leading-tight"
+				>
 					{data.resolvedName}
 				</Text>
 				{renderSubtitle()}

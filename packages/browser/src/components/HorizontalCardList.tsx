@@ -12,6 +12,7 @@ type Props = {
 	onFetchMore: () => void
 	emptyState?: React.ReactNode
 	height?: number
+	footerHeight?: number
 }
 
 export default function HorizontalCardList({
@@ -20,6 +21,7 @@ export default function HorizontalCardList({
 	onFetchMore,
 	emptyState,
 	height: heightProp,
+	footerHeight = 96,
 }: Props) {
 	const {
 		preferences: { thumbnailRatio },
@@ -34,10 +36,9 @@ export default function HorizontalCardList({
 	const calculatedHeight = useMemo(() => {
 		const imageWidth = !isAtLeastSmall ? 160 : !isAtLeastMedium ? 170.656 : 192 // widths from EntityCard
 		const imageHeight = imageWidth / thumbnailRatio
-		const footerHeight = 96 // estimated height of footer
 
 		return imageHeight + footerHeight
-	}, [isAtLeastSmall, isAtLeastMedium, thumbnailRatio])
+	}, [isAtLeastSmall, isAtLeastMedium, thumbnailRatio, footerHeight])
 
 	const height = heightProp ?? calculatedHeight
 
