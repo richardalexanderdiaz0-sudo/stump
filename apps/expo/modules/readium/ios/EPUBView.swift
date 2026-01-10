@@ -15,9 +15,22 @@
      var fontFamily: FontFamily?
      var lineHeight: Double?
      var fontSize: Double?
+     var fontWeight: Double?
      var textAlign: TextAlignment?
      var publisherStyles: Bool?
      var imageFilter: ImageFilter?
+     var pageMargins: Double?
+     var columnCount: ColumnCount?
+     var typeScale: Double?
+     var paragraphIndent: Double?
+     var paragraphSpacing: Double?
+     var wordSpacing: Double?
+     var letterSpacing: Double?
+     var hyphens: Bool?
+     var ligatures: Bool?
+     var textNormalization: Bool?
+     var verticalText: Bool?
+     var readingProgression: ReadiumNavigator.ReadingProgression?
  }
 
  public struct FinalizedProps {
@@ -29,9 +42,22 @@
      var fontFamily: FontFamily
      var lineHeight: Double
      var fontSize: Double
+     var fontWeight: Double?
      var textAlign: TextAlignment
      var publisherStyles: Bool = true
      var imageFilter: ImageFilter?
+     var pageMargins: Double?
+     var columnCount: ColumnCount?
+     var typeScale: Double?
+     var paragraphIndent: Double?
+     var paragraphSpacing: Double?
+     var wordSpacing: Double?
+     var letterSpacing: Double?
+     var hyphens: Bool?
+     var ligatures: Bool?
+     var textNormalization: Bool?
+     var verticalText: Bool?
+     var readingProgression: ReadiumNavigator.ReadingProgression?
  }
 
  public class EPUBView: ExpoView {
@@ -151,8 +177,22 @@
              fontFamily: pendingProps.fontFamily ?? oldProps?.fontFamily ?? FontFamily(rawValue: "systemFont"),
              lineHeight: pendingProps.lineHeight ?? oldProps?.lineHeight ?? 1.4,
              fontSize: pendingProps.fontSize ?? oldProps?.fontSize ?? 1.0,
+             fontWeight: pendingProps.fontWeight ?? oldProps?.fontWeight,
              textAlign: pendingProps.textAlign ?? oldProps?.textAlign ?? TextAlignment.justify,
-             imageFilter: pendingProps.imageFilter ?? oldProps?.imageFilter
+             publisherStyles: pendingProps.publisherStyles ?? oldProps?.publisherStyles ?? true,
+             imageFilter: pendingProps.imageFilter ?? oldProps?.imageFilter,
+             pageMargins: pendingProps.pageMargins ?? oldProps?.pageMargins,
+             columnCount: pendingProps.columnCount ?? oldProps?.columnCount,
+             typeScale: pendingProps.typeScale ?? oldProps?.typeScale,
+             paragraphIndent: pendingProps.paragraphIndent ?? oldProps?.paragraphIndent,
+             paragraphSpacing: pendingProps.paragraphSpacing ?? oldProps?.paragraphSpacing,
+             wordSpacing: pendingProps.wordSpacing ?? oldProps?.wordSpacing,
+             letterSpacing: pendingProps.letterSpacing ?? oldProps?.letterSpacing,
+             hyphens: pendingProps.hyphens ?? oldProps?.hyphens,
+             ligatures: pendingProps.ligatures ?? oldProps?.ligatures,
+             textNormalization: pendingProps.textNormalization ?? oldProps?.textNormalization,
+             verticalText: pendingProps.verticalText ?? oldProps?.verticalText,
+             readingProgression: pendingProps.readingProgression ?? oldProps?.readingProgression
          )
 
          // If this is a new book or first initialization, load the publication
@@ -334,14 +374,27 @@
                  config: .init(
                      preferences: EPUBPreferences(
                          backgroundColor: props.background,
+                         columnCount: props.columnCount,
                          fontFamily: props.fontFamily,
                          fontSize: props.fontSize,
+                         fontWeight: props.fontWeight,
+                         hyphens: props.hyphens,
                          imageFilter: props.imageFilter,
+                         letterSpacing: props.letterSpacing,
+                         ligatures: props.ligatures,
                          lineHeight: props.lineHeight,
+                         pageMargins: props.pageMargins,
+                         paragraphIndent: props.paragraphIndent,
+                         paragraphSpacing: props.paragraphSpacing,
                          publisherStyles: props.publisherStyles,
+                         readingProgression: props.readingProgression,
                          scroll: false,
                          textAlign: props.textAlign,
-                         textColor: props.foreground
+                         textColor: props.foreground,
+                         textNormalization: props.textNormalization,
+                         typeScale: props.typeScale,
+                         verticalText: props.verticalText,
+                         wordSpacing: props.wordSpacing
                      ),
                      defaults: EPUBDefaults(
                          publisherStyles: true,
@@ -515,14 +568,27 @@
 
          let preferences = EPUBPreferences(
              backgroundColor: props.background,
+             columnCount: props.columnCount,
              fontFamily: props.fontFamily,
              fontSize: props.fontSize,
+             fontWeight: props.fontWeight,
+             hyphens: props.hyphens,
              imageFilter: props.imageFilter,
+             letterSpacing: props.letterSpacing,
+             ligatures: props.ligatures,
              lineHeight: props.lineHeight,
+             pageMargins: props.pageMargins,
+             paragraphIndent: props.paragraphIndent,
+             paragraphSpacing: props.paragraphSpacing,
              publisherStyles: props.publisherStyles,
+             readingProgression: props.readingProgression,
              scroll: false,
              textAlign: props.textAlign,
-             textColor: props.foreground
+             textColor: props.foreground,
+             textNormalization: props.textNormalization,
+             typeScale: props.typeScale,
+             verticalText: props.verticalText,
+             wordSpacing: props.wordSpacing
          )
          
          navigator?.submitPreferences(preferences)

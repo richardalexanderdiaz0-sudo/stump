@@ -1427,6 +1427,8 @@ export type Mutation = {
   /** Creates a new member in the book club */
   createBookClubMember: BookClubMember;
   createBookClubSchedule: BookClub;
+  /** Create a bookmark for a user */
+  createBookmark: Bookmark;
   createEmailDevice: RegisteredEmailDevice;
   createEmailer: Emailer;
   /**
@@ -1435,11 +1437,6 @@ export type Mutation = {
    */
   createLibrary: Library;
   createNotifier: Notifier;
-  /**
-   * Create or update a bookmark for a user. If a bookmark already exists for the given media
-   * and epubcfi, the preview content is updated.
-   */
-  createOrUpdateBookmark: Bookmark;
   /**
    * Creates a new reading list.
    *
@@ -1462,8 +1459,10 @@ export type Mutation = {
   createUser: User;
   deleteApiKey: Apikey;
   deleteBookClub: BookClub;
-  /** Delete a bookmark by epubcfi. The user must be the owner of the bookmark. */
+  /** Delete a bookmark by ID, only if the user created it */
   deleteBookmark: Bookmark;
+  /** Delete a bookmark by epubcfi */
+  deleteBookmarkByEpubcfi: Bookmark;
   deleteEmailDevice: RegisteredEmailDevice;
   deleteEmailer: Emailer;
   deleteJob: Scalars['Boolean']['output'];
@@ -1689,6 +1688,11 @@ export type MutationCreateBookClubScheduleArgs = {
 };
 
 
+export type MutationCreateBookmarkArgs = {
+  input: BookmarkInput;
+};
+
+
 export type MutationCreateEmailDeviceArgs = {
   input: EmailDeviceInput;
 };
@@ -1706,11 +1710,6 @@ export type MutationCreateLibraryArgs = {
 
 export type MutationCreateNotifierArgs = {
   input: NotifierInput;
-};
-
-
-export type MutationCreateOrUpdateBookmarkArgs = {
-  input: BookmarkInput;
 };
 
 
@@ -1755,6 +1754,11 @@ export type MutationDeleteBookClubArgs = {
 
 
 export type MutationDeleteBookmarkArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type MutationDeleteBookmarkByEpubcfiArgs = {
   epubcfi: Scalars['String']['input'];
 };
 
@@ -3612,7 +3616,7 @@ export type BookByIdQueryVariables = Exact<{
 
 
 export type BookByIdQuery = { __typename?: 'Query', mediaById?: (
-    { __typename?: 'Media', id: string, extension: string, pages: number, resolvedName: string, seriesPosition?: number | null, size: number, metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, day?: number | null, editors: Array<string>, identifierAmazon?: string | null, identifierCalibre?: string | null, identifierGoogle?: string | null, identifierIsbn?: string | null, identifierMobiAsin?: string | null, identifierUuid?: string | null, genres: Array<string>, inkers: Array<string>, language?: string | null, letterers: Array<string>, links: Array<string>, month?: number | null, notes?: string | null, number?: any | null, pageCount?: number | null, pencillers: Array<string>, publisher?: string | null, series?: string | null, summary?: string | null, teams: Array<string>, title?: string | null, titleSort?: string | null, volume?: number | null, writers: Array<string>, year?: number | null } | null, readProgress?: { __typename?: 'ActiveReadingSession', page?: number | null, percentageCompleted?: any | null, epubcfi?: string | null, startedAt: any, elapsedSeconds?: number | null, updatedAt?: any | null, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, title?: string | null, type: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, position?: number | null, progression?: any | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null } | null, readHistory: Array<{ __typename?: 'FinishedReadingSession', completedAt: any }>, series: { __typename?: 'Series', id: string, resolvedName: string, mediaCount: number }, library: { __typename?: 'Library', id: string, name: string }, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null } }
+    { __typename?: 'Media', id: string, extension: string, pages: number, resolvedName: string, seriesPosition?: number | null, size: number, metadata?: { __typename?: 'MediaMetadata', ageRating?: number | null, characters: Array<string>, colorists: Array<string>, coverArtists: Array<string>, day?: number | null, editors: Array<string>, identifierAmazon?: string | null, identifierCalibre?: string | null, identifierGoogle?: string | null, identifierIsbn?: string | null, identifierMobiAsin?: string | null, identifierUuid?: string | null, genres: Array<string>, inkers: Array<string>, language?: string | null, letterers: Array<string>, links: Array<string>, month?: number | null, notes?: string | null, number?: any | null, pageCount?: number | null, pencillers: Array<string>, publisher?: string | null, series?: string | null, summary?: string | null, teams: Array<string>, title?: string | null, titleSort?: string | null, volume?: number | null, writers: Array<string>, year?: number | null } | null, readProgress?: { __typename?: 'ActiveReadingSession', page?: number | null, percentageCompleted?: any | null, epubcfi?: string | null, startedAt: any, elapsedSeconds?: number | null, updatedAt?: any | null, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, title?: string | null, type: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, position?: number | null, progression?: any | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null } | null, readHistory: Array<{ __typename?: 'FinishedReadingSession', completedAt: any }>, series: { __typename?: 'Series', id: string, resolvedName: string, mediaCount: number }, library: { __typename?: 'Library', id: string, name: string }, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null }, ebook?: { __typename?: 'Epub', toc: Array<string> } | null }
     & { ' $fragmentRefs'?: { 'BookMenuFragment': BookMenuFragment } }
   ) | null };
 
@@ -3621,7 +3625,7 @@ export type BookReadScreenQueryVariables = Exact<{
 }>;
 
 
-export type BookReadScreenQuery = { __typename?: 'Query', mediaById?: { __typename?: 'Media', id: string, pages: number, extension: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null }, readProgress?: { __typename?: 'ActiveReadingSession', percentageCompleted?: any | null, epubcfi?: string | null, page?: number | null, elapsedSeconds?: number | null, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, title?: string | null, type: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, progression?: any | null, position?: number | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null } | null, series: { __typename?: 'Series', id: string, resolvedName: string }, library: { __typename?: 'Library', id: string, name: string }, libraryConfig: { __typename?: 'LibraryConfig', defaultReadingImageScaleFit: ReadingImageScaleFit, defaultReadingMode: ReadingMode, defaultReadingDir: ReadingDirection }, metadata?: { __typename?: 'MediaMetadata', writers: Array<string>, publisher?: string | null, summary?: string | null } | null, analysisData?: { __typename?: 'MediaAnalysisData', dimensions: Array<{ __typename?: 'PageDimension', height: number, width: number }> } | null, nextInSeries: { __typename?: 'PaginatedMediaResponse', nodes: Array<{ __typename?: 'Media', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string } }> }, ebook?: { __typename?: 'Epub', toc: Array<string>, bookmarks: Array<{ __typename?: 'Bookmark', id: string, userId: string, epubcfi?: string | null, mediaId: string }>, spine: Array<{ __typename?: 'SpineItem', id?: string | null, idref: string, properties?: string | null, linear: boolean }> } | null } | null };
+export type BookReadScreenQuery = { __typename?: 'Query', mediaById?: { __typename?: 'Media', id: string, pages: number, extension: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string, metadata?: { __typename?: 'ImageMetadata', averageColor?: string | null, thumbhash?: string | null, colors: Array<{ __typename?: 'ImageColor', color: string, percentage: any }> } | null }, readProgress?: { __typename?: 'ActiveReadingSession', percentageCompleted?: any | null, epubcfi?: string | null, page?: number | null, elapsedSeconds?: number | null, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, title?: string | null, type: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, progression?: any | null, position?: number | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null } | null, series: { __typename?: 'Series', id: string, resolvedName: string }, library: { __typename?: 'Library', id: string, name: string }, libraryConfig: { __typename?: 'LibraryConfig', defaultReadingImageScaleFit: ReadingImageScaleFit, defaultReadingMode: ReadingMode, defaultReadingDir: ReadingDirection }, metadata?: { __typename?: 'MediaMetadata', writers: Array<string>, publisher?: string | null, summary?: string | null } | null, analysisData?: { __typename?: 'MediaAnalysisData', dimensions: Array<{ __typename?: 'PageDimension', height: number, width: number }> } | null, nextInSeries: { __typename?: 'PaginatedMediaResponse', nodes: Array<{ __typename?: 'Media', id: string, name: string, thumbnail: { __typename?: 'ImageRef', url: string } }> }, ebook?: { __typename?: 'Epub', toc: Array<string>, bookmarks: Array<{ __typename?: 'Bookmark', id: string, epubcfi?: string | null, mediaId: string, previewContent?: string | null, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, progression?: any | null, position?: number | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null }>, spine: Array<{ __typename?: 'SpineItem', id?: string | null, idref: string, properties?: string | null, linear: boolean }> } | null } | null };
 
 export type UpdateReadProgressionMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -3630,6 +3634,20 @@ export type UpdateReadProgressionMutationVariables = Exact<{
 
 
 export type UpdateReadProgressionMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ActiveReadingSession' } | { __typename: 'FinishedReadingSession' } };
+
+export type CreateBookmarkMobileMutationVariables = Exact<{
+  input: BookmarkInput;
+}>;
+
+
+export type CreateBookmarkMobileMutation = { __typename?: 'Mutation', createBookmark: { __typename?: 'Bookmark', id: string, epubcfi?: string | null, previewContent?: string | null, mediaId: string, locator?: { __typename?: 'ReadiumLocator', chapterTitle: string, href: string, locations?: { __typename?: 'ReadiumLocation', fragments?: Array<string> | null, progression?: any | null, position?: number | null, totalProgression?: any | null, cssSelector?: string | null, partialCfi?: string | null } | null } | null } };
+
+export type DeleteBookmarkMobileMutationVariables = Exact<{
+  id: Scalars['String']['input'];
+}>;
+
+
+export type DeleteBookmarkMobileMutation = { __typename?: 'Mutation', deleteBookmark: { __typename?: 'Bookmark', id: string } };
 
 export type BooksScreenQueryVariables = Exact<{
   pagination?: InputMaybe<Pagination>;
@@ -4039,19 +4057,19 @@ export type UpdateEpubProgressMutationVariables = Exact<{
 
 export type UpdateEpubProgressMutation = { __typename?: 'Mutation', updateMediaProgress: { __typename: 'ActiveReadingSession', percentageCompleted?: any | null, epubcfi?: string | null, page?: number | null, elapsedSeconds?: number | null } | { __typename: 'FinishedReadingSession' } };
 
-export type CreateOrUpdateBookmarkMutationVariables = Exact<{
+export type CreateBookmarkMutationVariables = Exact<{
   input: BookmarkInput;
 }>;
 
 
-export type CreateOrUpdateBookmarkMutation = { __typename?: 'Mutation', createOrUpdateBookmark: { __typename: 'Bookmark' } };
+export type CreateBookmarkMutation = { __typename?: 'Mutation', createBookmark: { __typename: 'Bookmark' } };
 
-export type DeleteBookmarkMutationVariables = Exact<{
+export type DeleteBookmarkByEpubcfiMutationVariables = Exact<{
   epubcfi: Scalars['String']['input'];
 }>;
 
 
-export type DeleteBookmarkMutation = { __typename?: 'Mutation', deleteBookmark: { __typename: 'Bookmark' } };
+export type DeleteBookmarkByEpubcfiMutation = { __typename?: 'Mutation', deleteBookmarkByEpubcfi: { __typename: 'Bookmark' } };
 
 export type SeriesBooksAlphabetQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -5755,6 +5773,9 @@ export const BookByIdDocument = new TypedDocumentString(`
         thumbhash
       }
     }
+    ebook {
+      toc
+    }
   }
 }
     fragment BookMenu on Media {
@@ -5849,9 +5870,21 @@ export const BookReadScreenDocument = new TypedDocumentString(`
     ebook {
       bookmarks {
         id
-        userId
         epubcfi
         mediaId
+        previewContent
+        locator {
+          chapterTitle
+          href
+          locations {
+            fragments
+            progression
+            position
+            totalProgression
+            cssSelector
+            partialCfi
+          }
+        }
       }
       spine {
         id
@@ -5871,6 +5904,35 @@ export const UpdateReadProgressionDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateReadProgressionMutation, UpdateReadProgressionMutationVariables>;
+export const CreateBookmarkMobileDocument = new TypedDocumentString(`
+    mutation CreateBookmarkMobile($input: BookmarkInput!) {
+  createBookmark(input: $input) {
+    id
+    epubcfi
+    previewContent
+    mediaId
+    locator {
+      chapterTitle
+      href
+      locations {
+        fragments
+        progression
+        position
+        totalProgression
+        cssSelector
+        partialCfi
+      }
+    }
+  }
+}
+    `) as unknown as TypedDocumentString<CreateBookmarkMobileMutation, CreateBookmarkMobileMutationVariables>;
+export const DeleteBookmarkMobileDocument = new TypedDocumentString(`
+    mutation DeleteBookmarkMobile($id: String!) {
+  deleteBookmark(id: $id) {
+    id
+  }
+}
+    `) as unknown as TypedDocumentString<DeleteBookmarkMobileMutation, DeleteBookmarkMobileMutationVariables>;
 export const BooksScreenDocument = new TypedDocumentString(`
     query BooksScreen($pagination: Pagination, $filters: MediaFilterInput, $orderBy: [MediaOrderBy!]) {
   media(pagination: $pagination, filter: $filters, orderBy: $orderBy) {
@@ -6823,20 +6885,20 @@ export const UpdateEpubProgressDocument = new TypedDocumentString(`
   }
 }
     `) as unknown as TypedDocumentString<UpdateEpubProgressMutation, UpdateEpubProgressMutationVariables>;
-export const CreateOrUpdateBookmarkDocument = new TypedDocumentString(`
-    mutation CreateOrUpdateBookmark($input: BookmarkInput!) {
-  createOrUpdateBookmark(input: $input) {
+export const CreateBookmarkDocument = new TypedDocumentString(`
+    mutation CreateBookmark($input: BookmarkInput!) {
+  createBookmark(input: $input) {
     __typename
   }
 }
-    `) as unknown as TypedDocumentString<CreateOrUpdateBookmarkMutation, CreateOrUpdateBookmarkMutationVariables>;
-export const DeleteBookmarkDocument = new TypedDocumentString(`
-    mutation DeleteBookmark($epubcfi: String!) {
-  deleteBookmark(epubcfi: $epubcfi) {
+    `) as unknown as TypedDocumentString<CreateBookmarkMutation, CreateBookmarkMutationVariables>;
+export const DeleteBookmarkByEpubcfiDocument = new TypedDocumentString(`
+    mutation DeleteBookmarkByEpubcfi($epubcfi: String!) {
+  deleteBookmarkByEpubcfi(epubcfi: $epubcfi) {
     __typename
   }
 }
-    `) as unknown as TypedDocumentString<DeleteBookmarkMutation, DeleteBookmarkMutationVariables>;
+    `) as unknown as TypedDocumentString<DeleteBookmarkByEpubcfiMutation, DeleteBookmarkByEpubcfiMutationVariables>;
 export const SeriesBooksAlphabetDocument = new TypedDocumentString(`
     query SeriesBooksAlphabet($id: ID!) {
   seriesById(id: $id) {

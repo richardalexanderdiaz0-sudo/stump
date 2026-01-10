@@ -119,8 +119,7 @@
              }
 
              Prop("readingDirection") { (view: EPUBView, prop: String) in
-                 let textAlign = prop == "rtl" ? TextAlignment.right : TextAlignment.left
-                 view.pendingProps.textAlign = textAlign
+                 view.pendingProps.readingProgression = prop == "rtl" ? ReadiumNavigator.ReadingProgression.rtl : ReadiumNavigator.ReadingProgression.ltr
              }
 
              Prop("publisherStyles") { (view: EPUBView, prop: Bool) in
@@ -136,6 +135,78 @@
                  default:
                      view.pendingProps.imageFilter = nil
                  }
+             }
+
+             Prop("pageMargins") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.pageMargins = prop
+             }
+
+             Prop("columnCount") { (view: EPUBView, prop: String?) in
+                 switch prop {
+                 case "1":
+                     view.pendingProps.columnCount = .one
+                 case "2":
+                     view.pendingProps.columnCount = .two
+                 default:
+                     view.pendingProps.columnCount = .auto
+                 }
+             }
+
+             Prop("textAlign") { (view: EPUBView, prop: String?) in
+                 switch prop {
+                 case "start":
+                     view.pendingProps.textAlign = .start
+                 case "left":
+                     view.pendingProps.textAlign = .left
+                 case "right":
+                     view.pendingProps.textAlign = .right
+                 case "center":
+                     view.pendingProps.textAlign = .center
+                 case "justify":
+                     view.pendingProps.textAlign = .justify
+                 default:
+                     view.pendingProps.textAlign = nil
+                 }
+             }
+
+             Prop("typeScale") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.typeScale = prop
+             }
+
+             Prop("paragraphIndent") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.paragraphIndent = prop
+             }
+
+             Prop("paragraphSpacing") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.paragraphSpacing = prop
+             }
+
+             Prop("wordSpacing") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.wordSpacing = prop
+             }
+
+             Prop("letterSpacing") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.letterSpacing = prop
+             }
+
+             Prop("hyphens") { (view: EPUBView, prop: Bool?) in
+                 view.pendingProps.hyphens = prop
+             }
+
+             Prop("ligatures") { (view: EPUBView, prop: Bool?) in
+                 view.pendingProps.ligatures = prop
+             }
+
+             Prop("fontWeight") { (view: EPUBView, prop: Double?) in
+                 view.pendingProps.fontWeight = prop
+             }
+
+             Prop("textNormalization") { (view: EPUBView, prop: Bool?) in
+                 view.pendingProps.textNormalization = prop
+             }
+
+             Prop("verticalText") { (view: EPUBView, prop: Bool?) in
+                 view.pendingProps.verticalText = prop
              }
 
              OnViewDidUpdateProps { (view: EPUBView) in

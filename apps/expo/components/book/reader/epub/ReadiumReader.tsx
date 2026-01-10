@@ -6,12 +6,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { FullScreenLoader } from '~/components/ui'
 import { verifyFileReadable } from '~/lib/filesystem'
 import { useDownload } from '~/lib/hooks'
-import { BookMetadata, ReadiumLocator, ReadiumView, ReadiumViewRef } from '~/modules/readium'
+import {
+	BookMetadata,
+	ColumnCount,
+	intoBookmarkRef,
+	ReadiumLocator,
+	ReadiumView,
+	ReadiumViewRef,
+} from '~/modules/readium'
 import { useReaderStore } from '~/stores'
-import { trimFragmentFromHref, useEpubLocationStore, useEpubTheme } from '~/stores/epub'
+import {
+	OnBookmarkCallback,
+	trimFragmentFromHref,
+	useEpubLocationStore,
+	useEpubTheme,
+} from '~/stores/epub'
+import { useEpubSheetStore } from '~/stores/epubSheet'
 
 import { EbookReaderBookRef } from '../image/context'
 import { OfflineCompatibleReader } from '../types'
+import CustomizeThemeSheet from './CustomizeThemeSheet'
+import EpubLocationsSheet from './EpubLocationsSheet'
+import EpubSettingsSheet from './EpubSettingsSheet'
 import ReadiumFooter, { FOOTER_HEIGHT } from './ReadiumFooter'
 import ReadiumHeader, { HEADER_HEIGHT } from './ReadiumHeader'
 
@@ -36,6 +52,14 @@ type Props = {
 	 * The URI of the offline book, if available
 	 */
 	offlineUri?: string
+	/**
+	 * Callback to create a bookmark at the given locator
+	 */
+	onBookmark?: OnBookmarkCallback
+	/**
+	 * Callback to delete a bookmark by ID
+	 */
+	onDeleteBookmark?: (bookmarkId: string) => Promise<void>
 } & OfflineCompatibleReader
 
 // FIXME: There is a pretty gnarly bug for single-page EPUBs where Readium doesn't do a great job of
@@ -48,6 +72,8 @@ export default function ReadiumReader({
 	initialLocator,
 	incognito,
 	onLocationChanged,
+	onBookmark,
+	onDeleteBookmark,
 	...ctx
 }: Props) {
 	const { downloadBook } = useDownload({ serverId: ctx.serverId })
@@ -58,22 +84,48 @@ export default function ReadiumReader({
 	const controlsVisible = useReaderStore((state) => state.showControls)
 	const setControlsVisible = useReaderStore((state) => state.setShowControls)
 
-	const { brightness, ...preferences } = useReaderStore((state) => ({
+	const {
+		fontWeight: rawFontWeight,
+		columnCount: rawColumnCount,
+		...preferences
+	} = useReaderStore((state) => ({
 		fontSize: state.globalSettings.fontSize,
 		fontFamily: state.globalSettings.fontFamily,
+		fontWeight: state.globalSettings.fontWeight,
 		lineHeight: state.globalSettings.lineHeight,
 		brightness: state.globalSettings.brightness,
 		publisherStyles: state.globalSettings.allowPublisherStyles,
+		pageMargins: state.globalSettings.pageMargins,
+		columnCount: state.globalSettings.columnCount,
+		imageFilter: state.globalSettings.imageFilter,
+		textAlign: state.globalSettings.textAlign,
+		typeScale: state.globalSettings.typeScale,
+		paragraphIndent: state.globalSettings.paragraphIndent,
+		paragraphSpacing: state.globalSettings.paragraphSpacing,
+		wordSpacing: state.globalSettings.wordSpacing,
+		letterSpacing: state.globalSettings.letterSpacing,
+		hyphens: state.globalSettings.hyphens,
+		ligatures: state.globalSettings.ligatures,
+		textNormalization: state.globalSettings.textNormalization,
+		verticalText: state.globalSettings.verticalText,
+		readingDirection: (state.globalSettings.readingDirection?.toLowerCase() === 'ltr'
+			? 'ltr'
+			: 'rtl') as 'ltr' | 'rtl',
 	}))
 	const { colors } = useEpubTheme()
 
-	const config = useMemo(
-		() => ({
-			...preferences,
-			colors,
-		}),
-		[preferences, colors],
-	)
+	// Readium uses a scale factor  (1.0 = 400)
+	const fontWeight = rawFontWeight ? rawFontWeight / 400 : undefined
+	const columnCount = (rawColumnCount != null ? String(rawColumnCount) : undefined) as
+		| ColumnCount
+		| undefined
+
+	const config = {
+		...preferences,
+		fontWeight,
+		columnCount,
+		colors,
+	}
 
 	const readerRef = useRef<ReadiumViewRef>(null)
 
@@ -105,6 +157,9 @@ export default function ReadiumReader({
 		storeActions: store.storeActions,
 		storeHeaders: store.storeHeaders,
 		toc: store.toc,
+		storeBookmarks: store.storeBookmarks,
+		storeOnBookmark: store.storeOnBookmark,
+		storeOnDeleteBookmark: store.storeOnDeleteBookmark,
 	}))
 
 	const { isLoading: isDownloading } = useQuery({
@@ -138,17 +193,45 @@ export default function ReadiumReader({
 		() => {
 			store.storeHeaders(ctx.requestHeaders)
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[ctx.requestHeaders],
 	)
 
 	useEffect(
 		() => {
+			store.storeOnBookmark(onBookmark)
+			store.storeOnDeleteBookmark(onDeleteBookmark)
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[onBookmark, onDeleteBookmark],
+	)
+
+	useEffect(
+		() => {
+			const bookmarks = book.ebook?.bookmarks
+			if (bookmarks) {
+				store.storeBookmarks(bookmarks.map(intoBookmarkRef))
+			}
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[book.ebook?.bookmarks],
+	)
+
+	const closeAllSheets = useEpubSheetStore((state) => state.closeAllSheets)
+
+	useEffect(
+		() => {
 			return () => {
 				store.cleanup()
+				// FIXME: Not working...
+				closeAllSheets()
 				setLocalUri(null)
 			}
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[],
 	)
@@ -199,16 +282,6 @@ export default function ReadiumReader({
 		[],
 	)
 
-	const headerUrls = useMemo(() => {
-		const prefix = ctx.offlineUri
-			? `/offline/${book.id}`
-			: `/server/${ctx.serverId}/books/${book.id}`
-		return {
-			settingsUrl: `${prefix}/ebook-settings`,
-			locationsUrl: `${prefix}/ebook-locations-modal`,
-		}
-	}, [ctx, book.id])
-
 	const insets = useSafeAreaInsets()
 
 	if (isDownloading) return <FullScreenLoader label="Downloading..." />
@@ -220,10 +293,9 @@ export default function ReadiumReader({
 			style={{
 				flex: 1,
 				backgroundColor: colors?.background,
-				filter: `brightness(${brightness * 100}%)`,
 			}}
 		>
-			<ReadiumHeader {...headerUrls} />
+			<ReadiumHeader />
 
 			<ReadiumView
 				ref={readerRef}
@@ -243,6 +315,10 @@ export default function ReadiumReader({
 			/>
 
 			<ReadiumFooter />
+
+			<EpubSettingsSheet />
+			<EpubLocationsSheet />
+			<CustomizeThemeSheet />
 		</View>
 	)
 }

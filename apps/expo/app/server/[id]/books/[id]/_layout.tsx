@@ -30,7 +30,7 @@ export default function Screen() {
 			<Stack.Screen
 				name="ebook-settings"
 				options={{
-					presentation: 'modal',
+					presentation: 'formSheet',
 					headerShown: false,
 				}}
 			/>
@@ -38,7 +38,7 @@ export default function Screen() {
 			<Stack.Screen
 				name="ebook-locations-modal"
 				options={{
-					presentation: 'modal',
+					presentation: 'formSheet',
 					headerShown: false,
 				}}
 			/>
