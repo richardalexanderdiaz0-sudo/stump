@@ -12,6 +12,7 @@ import TImage from 'react-native-turbo-image'
 
 import { useActiveServer } from '~/components/activeServer'
 import { InfoRow, InfoStat } from '~/components/book/overview'
+import LongValue from '~/components/book/overview/longValue/LongValue'
 import ChevronBackLink from '~/components/ChevronBackLink'
 import { ThumbnailImage } from '~/components/image'
 import { PublicationMenu } from '~/components/opds'
@@ -235,7 +236,7 @@ export default function Screen() {
 					>
 						{identifier && <InfoRow label="Identifier" value={identifier} longValue />}
 						<InfoRow label="Title" value={title} longValue />
-						{description && <InfoRow label="Description" value={description} longValue />}
+						{description && <LongValue label="Description" value={description} />}
 						{modified && (
 							<InfoRow label="Modified" value={modified.format('MMMM DD, YYYY')} longValue />
 						)}

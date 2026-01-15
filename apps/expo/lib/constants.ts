@@ -113,6 +113,10 @@ const light = {
 		minimumTrack: '#c48259',
 		maximumTrack: '#d3d5d7',
 	},
+	sheet: {
+		background: '#ffffff',
+		grabber: '#ccc',
+	},
 }
 
 type Theme = typeof light
@@ -200,6 +204,10 @@ const dark: Theme = {
 	slider: {
 		minimumTrack: '#cf9977',
 		maximumTrack: '#292c30',
+	},
+	sheet: {
+		background: '#000000',
+		grabber: '#333',
 	},
 }
 

@@ -1,18 +1,22 @@
 import { Host, Image } from '@expo/ui/swift-ui'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { useRouter } from 'expo-router'
 import { CheckCircle2 } from 'lucide-react-native'
-import { useCallback, useEffect, useMemo } from 'react'
-import { Platform, Pressable, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { Alert, Platform, Pressable, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import * as ContextMenu from 'zeego/context-menu'
 
-import { imageMeta, syncStatus } from '~/db'
+import { epubProgress, imageMeta, syncStatus } from '~/db'
 import { useColors } from '~/lib/constants'
 import { formatBytesSeparate } from '~/lib/format'
+import { useDownload } from '~/lib/hooks'
 import { useSelectionStore } from '~/stores/selection'
 
 import { ThumbnailImage } from '../image'
 import { Heading, Progress, Text } from '../ui'
 import { Icon } from '../ui/icon'
+import { DownloadedBookDetailsSheet } from './DownloadedBookDetailsSheet'
 import { SyncIcon } from './sync-icon/SyncIcon'
 import { DownloadedFile } from './types'
 import { useDownloadRowItemSize } from './useDownloadRowItemSize'
@@ -24,6 +28,11 @@ type Props = {
 
 export default function DownloadRowItem({ downloadedFile }: Props) {
 	const router = useRouter()
+	const sheetRef = useRef<TrueSheet>(null)
+
+	const { deleteBook, markAsComplete, clearProgress } = useDownload({
+		serverId: downloadedFile.serverId,
+	})
 
 	const readProgress = useMemo(() => downloadedFile.readProgress, [downloadedFile])
 	const status = syncStatus.safeParse(readProgress?.syncStatus).data
@@ -38,6 +47,7 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 
 	const selectionStore = useSelectionStore((state) => ({
 		isSelectionMode: state.isSelecting,
+		setIsSelecting: state.setIsSelecting,
 		onSelectItem: (id: string) => state.toggleSelection(id),
 		isSelected: state.isSelected(downloadedFile.id),
 	}))
@@ -55,7 +65,9 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 	}))
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/immutability
 		iconOpacity.value = withTiming(selectionStore.isSelected ? 0.6 : 1, { duration: 200 })
+		// eslint-disable-next-line react-hooks/immutability
 		overlayOpacity.value = withTiming(selectionStore.isSelected ? 1 : 0, { duration: 150 })
 	}, [selectionStore.isSelected, iconOpacity, overlayOpacity])
 
@@ -66,6 +78,56 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 				: router.navigate(`/offline/${downloadedFile.id}/read`),
 		[router, downloadedFile.id, selectionStore],
 	)
+
+	const progression = useMemo(() => {
+		if (!readProgress) {
+			return { isCompleted: false, hasProgress: false }
+		}
+
+		const currentPage = readProgress.page || 0
+		const totalPages = downloadedFile.pages || -1
+
+		if (totalPages > 0 && currentPage >= totalPages) {
+			return { isCompleted: true, hasProgress: true }
+		}
+
+		if (readProgress.percentage) {
+			const parsed = parseFloat(readProgress.percentage)
+			if (!isNaN(parsed) && parsed >= 0.99) {
+				return { isCompleted: true, hasProgress: true }
+			}
+		}
+
+		return { isCompleted: false, hasProgress: true }
+	}, [readProgress, downloadedFile.pages])
+
+	const handleSelect = useCallback(() => {
+		selectionStore.setIsSelecting(true)
+		selectionStore.onSelectItem(downloadedFile.id)
+	}, [selectionStore, downloadedFile.id])
+
+	const handleMarkAsComplete = useCallback(() => {
+		markAsComplete(downloadedFile.id, downloadedFile.pages)
+	}, [markAsComplete, downloadedFile.id, downloadedFile.pages])
+
+	const handleClearProgress = useCallback(() => {
+		clearProgress(downloadedFile.id)
+	}, [clearProgress, downloadedFile.id])
+
+	const handleDelete = useCallback(() => {
+		Alert.alert(
+			'Delete Download',
+			`Are you sure you want to delete "${downloadedFile.bookName || 'this book'}"?`,
+			[
+				{ text: 'Cancel', style: 'cancel' },
+				{
+					text: 'Delete',
+					style: 'destructive',
+					onPress: () => deleteBook(downloadedFile.id),
+				},
+			],
+		)
+	}, [deleteBook, downloadedFile.id, downloadedFile.bookName])
 
 	// Note: I went back and forth on which order to show these pieces of info in the subtitle.
 	// The big thing in my mind was that I see page/progression more "important" than size but wasn't
@@ -88,12 +150,14 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 			}
 		}
 
-		// TODO: Re-add chapter title when it is more reliably something meaningful. I find that for some books
-		// it is showing the resource name instead of the actual chapter which I don't want to show
-		// const readiumProgress = epubProgress.safeParse(readProgress?.percentage).data
-		// if (readiumProgress?.chapterTitle) {
-		// 	parts.push(readiumProgress.chapterTitle)
-		// }
+		const epubProgression = epubProgress.safeParse(readProgress?.epubProgress).data
+		// Avoid adding title if the chapter isn't named properly
+		if (
+			epubProgression?.chapterTitle &&
+			!epubProgression.chapterTitle.match(/\.(html|xml|xhtml)$/i)
+		) {
+			parts.push(epubProgression.chapterTitle)
+		}
 
 		return parts.join(' • ')
 	}
@@ -109,10 +173,10 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 			return Math.min((currentPage / totalPages) * 100, 100)
 		}
 
-		const epubProgress = readProgress.percentage
+		const progressPercentage = readProgress.percentage
 
-		if (epubProgress) {
-			const parsed = parseFloat(epubProgress)
+		if (progressPercentage) {
+			const parsed = parseFloat(progressPercentage)
 			if (!isNaN(parsed)) {
 				return Math.min(parsed * 100, 100)
 			}
@@ -122,63 +186,107 @@ export default function DownloadRowItem({ downloadedFile }: Props) {
 	}
 
 	return (
-		<Pressable onPress={onPress}>
-			{({ pressed }) => (
-				<View
-					// Note: Using margin here so the overlay isn't cut off by edges of device
-					className="white relative mx-4 flex-row gap-4"
-					style={{ opacity: pressed && !selectionStore.isSelectionMode ? 0.8 : 1 }}
-				>
-					{/* TODO: Use file icons when no thumbnail is available? */}
-					<ThumbnailImage
-						source={{
-							// @ts-expect-error: URI doesn't like undefined but it shows a placeholder when
-							// undefined so it's fine
-							uri: getThumbnailPath(downloadedFile),
-						}}
-						resizeMode="stretch"
-						size={{ height, width }}
-						placeholderData={thumbnailData}
-					/>
-
-					<View className="flex-1 justify-center py-1.5">
-						<View className="flex flex-1 flex-row justify-between gap-2">
-							<View className="flex shrink gap-0.5">
-								<Heading numberOfLines={2}>{downloadedFile.bookName || 'Untitled'}</Heading>
-								<Text className="text-foreground-muted">{renderSubtitle()}</Text>
-							</View>
-
-							{status && (
-								<Animated.View className="mt-1 shrink-0" style={syncIconStyle}>
-									<SyncIcon status={status} />
-								</Animated.View>
-							)}
-						</View>
-
-						{readProgress && (
-							<View className="flex-row items-center gap-4">
-								<Progress
-									className="h-1 shrink bg-background-surface-secondary"
-									value={getProgress()}
-									style={{ height: 6, borderRadius: 3 }}
+		<>
+			<ContextMenu.Root>
+				<ContextMenu.Trigger>
+					<Pressable onPress={onPress}>
+						{({ pressed }) => (
+							<View
+								className="white relative mx-4 flex-row gap-4"
+								style={{
+									opacity: pressed && !selectionStore.isSelectionMode ? 0.8 : 1,
+								}}
+							>
+								{/* TODO: Use file icons when no thumbnail is available? */}
+								<ThumbnailImage
+									source={{
+										// @ts-expect-error: URI doesn't like undefined but it shows a placeholder when
+										// undefined so it's fine
+										uri: getThumbnailPath(downloadedFile),
+									}}
+									resizeMode="stretch"
+									size={{ height, width }}
+									placeholderData={thumbnailData}
 								/>
 
-								<Text className="shrink-0 text-foreground-muted">
-									{(getProgress() || 0).toFixed(0)}%
-								</Text>
+								<View className="flex-1 justify-center py-1.5">
+									<View className="flex flex-1 flex-row justify-between gap-2">
+										<View className="flex shrink gap-0.5">
+											<Heading numberOfLines={2}>{downloadedFile.bookName || 'Untitled'}</Heading>
+											<Text className="text-foreground-muted">{renderSubtitle()}</Text>
+										</View>
+
+										{status && (
+											<Animated.View className="mt-1 shrink-0" style={syncIconStyle}>
+												<SyncIcon status={status} />
+											</Animated.View>
+										)}
+									</View>
+
+									{readProgress && (
+										<View className="flex-row items-center gap-4">
+											<Progress
+												className="h-1 shrink bg-background-surface-secondary"
+												value={getProgress()}
+												style={{ height: 6, borderRadius: 3 }}
+											/>
+
+											<Text className="shrink-0 text-foreground-muted">
+												{(getProgress() || 0).toFixed(0)}%
+											</Text>
+										</View>
+									)}
+								</View>
+
+								<Animated.View
+									className="squircle absolute inset-0 z-10 -m-1 rounded-lg border-2"
+									style={overlayStyle}
+								>
+									<View className="flex flex-1 items-center justify-center">{CheckIcon}</View>
+								</Animated.View>
 							</View>
 						)}
-					</View>
+					</Pressable>
+				</ContextMenu.Trigger>
 
-					<Animated.View
-						className="squircle absolute inset-0 z-10 -m-1 rounded-lg border-2"
-						style={overlayStyle}
-					>
-						<View className="flex flex-1 items-center justify-center">{CheckIcon}</View>
-					</Animated.View>
-				</View>
-			)}
-		</Pressable>
+				<ContextMenu.Content>
+					<ContextMenu.Group>
+						<ContextMenu.Item key="details" onSelect={() => sheetRef.current?.present()}>
+							<ContextMenu.ItemTitle>See Details</ContextMenu.ItemTitle>
+							<ContextMenu.ItemIcon ios={{ name: 'info.circle' }} />
+						</ContextMenu.Item>
+
+						<ContextMenu.Item key="select" onSelect={handleSelect}>
+							<ContextMenu.ItemTitle>Select</ContextMenu.ItemTitle>
+							<ContextMenu.ItemIcon ios={{ name: 'checkmark.circle' }} />
+						</ContextMenu.Item>
+					</ContextMenu.Group>
+
+					<ContextMenu.Group>
+						{!progression.isCompleted && (
+							<ContextMenu.Item key="markAsRead" onSelect={handleMarkAsComplete}>
+								<ContextMenu.ItemTitle>Mark as Read</ContextMenu.ItemTitle>
+								<ContextMenu.ItemIcon ios={{ name: 'book.closed' }} />
+							</ContextMenu.Item>
+						)}
+
+						{progression.hasProgress && (
+							<ContextMenu.Item key="clearProgress" onSelect={handleClearProgress}>
+								<ContextMenu.ItemTitle>Clear Progress</ContextMenu.ItemTitle>
+								<ContextMenu.ItemIcon ios={{ name: 'minus.circle' }} />
+							</ContextMenu.Item>
+						)}
+					</ContextMenu.Group>
+
+					<ContextMenu.Item key="delete" destructive onSelect={handleDelete}>
+						<ContextMenu.ItemTitle>Delete Download</ContextMenu.ItemTitle>
+						<ContextMenu.ItemIcon ios={{ name: 'trash' }} />
+					</ContextMenu.Item>
+				</ContextMenu.Content>
+			</ContextMenu.Root>
+
+			<DownloadedBookDetailsSheet ref={sheetRef} downloadedFile={downloadedFile} />
+		</>
 	)
 }
 
