@@ -24,6 +24,7 @@ const NEW_THEME_DEFAULTS: StoredConfig = {
 	colors: {
 		background: '#FFFFFF',
 		foreground: '#000000',
+		highlight: '#FFEB3B',
 	},
 }
 
@@ -75,6 +76,7 @@ export default function CustomizeTheme({ onCancel, mode = 'edit', theme: namedTh
 			colors: {
 				background: value,
 				foreground: theme.colors?.foreground ?? '#000000',
+				highlight: theme.colors?.highlight ?? '#FFEB3B',
 			},
 		}))
 	}, [])
@@ -85,6 +87,18 @@ export default function CustomizeTheme({ onCancel, mode = 'edit', theme: namedTh
 			colors: {
 				background: theme.colors?.background ?? '#FFFFFF',
 				foreground: value,
+				highlight: theme.colors?.highlight ?? '#FFEB3B',
+			},
+		}))
+	}, [])
+
+	const onChangeHighlight = useCallback((value: string) => {
+		setCustomTheme((theme) => ({
+			...theme,
+			colors: {
+				background: theme.colors?.background ?? '#FFFFFF',
+				foreground: theme.colors?.foreground ?? '#000000',
+				highlight: value,
 			},
 		}))
 	}, [])
@@ -102,7 +116,11 @@ export default function CustomizeTheme({ onCancel, mode = 'edit', theme: namedTh
 			return
 		}
 
-		if (!customTheme.colors?.background || !customTheme.colors?.foreground) {
+		if (
+			!customTheme.colors?.background ||
+			!customTheme.colors?.foreground ||
+			!customTheme.colors?.highlight
+		) {
 			Alert.alert('Error', 'Theme colors are required')
 			return
 		}
@@ -169,6 +187,12 @@ export default function CustomizeTheme({ onCancel, mode = 'edit', theme: namedTh
 					onChange={onChangeForeground}
 				/>
 
+				<ColorPickerRow
+					label="Highlight"
+					value={customTheme.colors?.highlight ?? '#FFEB3B'}
+					onChange={onChangeHighlight}
+				/>
+
 				<View className="h-px bg-black/10 dark:bg-white/10" />
 
 				<Text className="text-xl">Premade themes</Text>
@@ -196,23 +220,71 @@ type PremadeTheme = EPUBReaderThemeConfig & { name: string }
 
 const PREMADE_THEMES: PremadeTheme[] = [
 	// Cools
-	{ colors: { background: '#ffffff', foreground: '#000000' }, name: 'Light' },
-	{ colors: { background: '#eeeeee', foreground: '#131111' }, name: 'Paper' },
-	{ colors: { background: '#4a4a4c', foreground: '#e5e5e8' }, name: 'Slate' },
-	{ colors: { background: '#212122', foreground: '#f5f5f8' }, name: 'Ink' },
+	{
+		colors: { background: '#ffffff', foreground: '#000000', highlight: '#ffeb3b' },
+		name: 'Light',
+	},
+	{
+		colors: { background: '#eeeeee', foreground: '#131111', highlight: '#ffd54f' },
+		name: 'Paper',
+	},
+	{
+		colors: { background: '#4a4a4c', foreground: '#e5e5e8', highlight: '#4fc3f7' },
+		name: 'Slate',
+	},
+	{
+		colors: { background: '#212122', foreground: '#f5f5f8', highlight: '#81d4fa' },
+		name: 'Ink',
+	},
 	// Neutrals
-	{ colors: { background: '#000000', foreground: '#f5f3ef' }, name: 'Dark' },
-	{ colors: { background: '#131110', foreground: '#f5f3ef' }, name: 'Smoke' },
-	{ colors: { background: '#292724', foreground: '#f5f3ef' }, name: 'Charcoal' },
-	{ colors: { background: '#44413c', foreground: '#f5f3ef' }, name: 'Stone' },
+	{
+		colors: { background: '#000000', foreground: '#f5f3ef', highlight: '#ffb74d' },
+		name: 'Dark',
+	},
+	{
+		colors: { background: '#131110', foreground: '#f5f3ef', highlight: '#ffab40' },
+		name: 'Smoke',
+	},
+	{
+		colors: { background: '#292724', foreground: '#f5f3ef', highlight: '#ffd180' },
+		name: 'Charcoal',
+	},
+	{
+		colors: { background: '#44413c', foreground: '#f5f3ef', highlight: '#ffcc80' },
+		name: 'Stone',
+	},
 	// Naturals
-	{ colors: { background: '#f4e8d2', foreground: '#5b4636' }, name: 'Parchment' },
-	{ colors: { background: '#e7d3b5', foreground: '#423328' }, name: 'Papyrus' },
-	{ colors: { background: '#dabd98', foreground: '#352920' }, name: 'Sepia' },
-	{ colors: { background: '#76634a', foreground: '#fff6e8' }, name: 'Leather' },
+	{
+		colors: { background: '#f4e8d2', foreground: '#5b4636', highlight: '#e57373' },
+		name: 'Parchment',
+	},
+	{
+		colors: { background: '#e7d3b5', foreground: '#423328', highlight: '#ff8a65' },
+		name: 'Papyrus',
+	},
+	{
+		colors: { background: '#dabd98', foreground: '#352920', highlight: '#d4796a' },
+		name: 'Sepia',
+	},
+	{
+		colors: { background: '#76634a', foreground: '#fff6e8', highlight: '#ffd54f' },
+		name: 'Leather',
+	},
 	// Woods
-	{ colors: { background: '#433b2d', foreground: '#e8dbc7' }, name: 'Olive' },
-	{ colors: { background: '#4b3b2b', foreground: '#e2d8c8' }, name: 'Cedar' },
-	{ colors: { background: '#312923', foreground: '#ebe1d2' }, name: 'Walnut' },
-	{ colors: { background: '#382929', foreground: '#f3e9da' }, name: 'Mahogany' },
+	{
+		colors: { background: '#433b2d', foreground: '#e8dbc7', highlight: '#aed581' },
+		name: 'Olive',
+	},
+	{
+		colors: { background: '#4b3b2b', foreground: '#e2d8c8', highlight: '#ffab91' },
+		name: 'Cedar',
+	},
+	{
+		colors: { background: '#312923', foreground: '#ebe1d2', highlight: '#a1887f' },
+		name: 'Walnut',
+	},
+	{
+		colors: { background: '#382929', foreground: '#f3e9da', highlight: '#ce93d8' },
+		name: 'Mahogany',
+	},
 ]

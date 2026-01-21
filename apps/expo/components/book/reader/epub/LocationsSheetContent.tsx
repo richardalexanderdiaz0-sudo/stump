@@ -11,8 +11,9 @@ import { usePreferencesStore } from '~/stores'
 import { type TableOfContentsItem, useEpubLocationStore } from '~/stores/epub'
 import { useEpubSheetStore } from '~/stores/epubSheet'
 
-import BookmarkListItem from './BookmarkListItem'
+import AnnotationsAndBookmarks from './AnnotationsAndBookmarks'
 
+// TODO: Add annotations
 export default function LocationsSheetContent() {
 	const [activePage, setActivePage] = useState(0)
 	const { height: windowHeight } = useWindowDimensions()
@@ -27,7 +28,6 @@ export default function LocationsSheetContent() {
 	const book = useEpubLocationStore((store) => store.book)
 	const toc = useEpubLocationStore((store) => store.toc)
 	const embeddedMetadata = useEpubLocationStore((store) => store.embeddedMetadata)
-	const bookmarks = useEpubLocationStore((store) => store.bookmarks)
 
 	const requestHeaders = useEpubLocationStore((store) => store.requestHeaders)
 
@@ -68,7 +68,6 @@ export default function LocationsSheetContent() {
 					)}
 				</Pressable>
 
-				{/* TODO: Should bookmarks and annotations be shown together? */}
 				<Pressable onPress={() => ref.current?.setPage(2)}>
 					{({ pressed }) => (
 						<Text
@@ -77,7 +76,7 @@ export default function LocationsSheetContent() {
 							})}
 							style={{ opacity: pressed && activePage !== 2 ? 0.7 : 1 }}
 						>
-							Bookmarks
+							Annotations
 						</Text>
 					)}
 				</Pressable>
@@ -150,20 +149,7 @@ export default function LocationsSheetContent() {
 					}}
 					key="3"
 				>
-					{bookmarks.length === 0 ? (
-						<View className="flex-1 items-center justify-center p-4">
-							<Text className="text-center text-foreground-muted">No bookmarks yet</Text>
-						</View>
-					) : (
-						<ScrollView className="w-full" contentContainerStyle={{ paddingBottom: 16 }}>
-							{bookmarks.map((bookmark) => (
-								<View key={bookmark.id}>
-									<BookmarkListItem bookmark={bookmark} />
-									<Divider />
-								</View>
-							))}
-						</ScrollView>
-					)}
+					<AnnotationsAndBookmarks />
 				</View>
 			</PagerView>
 		</View>

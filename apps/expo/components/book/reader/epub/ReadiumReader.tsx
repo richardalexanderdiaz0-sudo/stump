@@ -9,7 +9,10 @@ import { useDownload } from '~/lib/hooks'
 import {
 	BookLoadedEventPayload,
 	ColumnCount,
+	DecoratorTapEvent,
+	HighlightRequestEvent,
 	intoBookmarkRef,
+	NoteRequestEvent,
 	ReadiumLocator,
 	ReadiumView,
 	ReadiumViewRef,
@@ -26,11 +29,22 @@ import { useEpubSheetStore } from '~/stores/epubSheet'
 
 import { EbookReaderBookRef } from '../image/context'
 import { OfflineCompatibleReader } from '../types'
+import {
+	CreateAnnotationSheet,
+	CreateAnnotationSheetRef,
+	UpdateAnnotationSheet,
+	UpdateAnnotationSheetRef,
+} from './annotations'
 import CustomizeThemeSheet from './CustomizeThemeSheet'
 import EpubLocationsSheet from './EpubLocationsSheet'
 import EpubSettingsSheet from './EpubSettingsSheet'
 import ReadiumFooter, { FOOTER_HEIGHT } from './ReadiumFooter'
 import ReadiumHeader, { HEADER_HEIGHT } from './ReadiumHeader'
+
+export type OnCreateAnnotationCallback = (
+	locator: ReadiumLocator,
+	annotationText?: string,
+) => Promise<{ id: string }>
 
 type Props = {
 	/**
@@ -61,6 +75,13 @@ type Props = {
 	 * Callback to delete a bookmark by ID
 	 */
 	onDeleteBookmark?: (bookmarkId: string) => Promise<void>
+	onCreateAnnotation?: OnCreateAnnotationCallback
+	/**
+	 * Callback to update an annotation's text, including highlights since they
+	 * are a type of annotation
+	 */
+	onUpdateAnnotation?: (annotationId: string, annotationText: string | null) => Promise<void>
+	onDeleteAnnotation?: (annotationId: string) => Promise<void>
 } & OfflineCompatibleReader
 
 // FIXME: There is a pretty gnarly bug for single-page EPUBs where Readium doesn't do a great job of
@@ -75,12 +96,14 @@ export default function ReadiumReader({
 	onLocationChanged,
 	onBookmark,
 	onDeleteBookmark,
+	onCreateAnnotation,
+	onUpdateAnnotation,
+	onDeleteAnnotation,
 	...ctx
 }: Props) {
 	const { downloadBook } = useDownload({ serverId: ctx.serverId })
 
 	const [localUri, setLocalUri] = useState<string | null>(() => ctx.offlineUri || null)
-	// const [isDownloading, setIsDownloading] = useState(false)
 
 	const controlsVisible = useReaderStore((state) => state.showControls)
 	const setControlsVisible = useReaderStore((state) => state.setShowControls)
@@ -145,10 +168,20 @@ export default function ReadiumReader({
 				destroy: async () => {
 					readerRef.current?.destroy()
 				},
+				getSelection: async () => {
+					return readerRef.current?.getSelection() ?? null
+				},
+				clearSelection: async () => {
+					readerRef.current?.clearSelection()
+				},
 			}) satisfies ReadiumViewRef,
 		[],
 	)
 
+	// TODO: Refactor to avoid registering callbacks. This is a bit yucky and the original reason for doing
+	// is (using expo router w different screens) is no longer relevant since we have the programmatic sheets
+	// instead of navigation-based ones. I figure the callbacks and less mutable state can just go into context,
+	// which cuts the majority if not all the unnecessary store logic
 	const store = useEpubLocationStore((store) => ({
 		storeBook: store.storeBook,
 		onTocChange: store.onTocChange,
@@ -161,6 +194,18 @@ export default function ReadiumReader({
 		storeBookmarks: store.storeBookmarks,
 		storeOnBookmark: store.storeOnBookmark,
 		storeOnDeleteBookmark: store.storeOnDeleteBookmark,
+		annotations: store.annotations,
+		storeAnnotations: store.storeAnnotations,
+		addAnnotation: store.addAnnotation,
+		updateAnnotation: store.updateAnnotation,
+		removeAnnotation: store.removeAnnotation,
+		getAnnotation: store.getAnnotation,
+		onCreateAnnotation: store.onCreateAnnotation,
+		onUpdateAnnotation: store.onUpdateAnnotation,
+		onDeleteAnnotation: store.onDeleteAnnotation,
+		storeOnCreateAnnotation: store.storeOnCreateAnnotation,
+		storeOnUpdateAnnotation: store.storeOnUpdateAnnotation,
+		storeOnDeleteAnnotation: store.storeOnDeleteAnnotation,
 	}))
 
 	const { isLoading: isDownloading } = useQuery({
@@ -211,6 +256,17 @@ export default function ReadiumReader({
 
 	useEffect(
 		() => {
+			store.storeOnCreateAnnotation(onCreateAnnotation)
+			store.storeOnUpdateAnnotation(onUpdateAnnotation)
+			store.storeOnDeleteAnnotation(onDeleteAnnotation)
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[onCreateAnnotation, onUpdateAnnotation, onDeleteAnnotation],
+	)
+
+	useEffect(
+		() => {
 			const bookmarks = book.ebook?.bookmarks
 			if (bookmarks) {
 				store.storeBookmarks(bookmarks.map(intoBookmarkRef))
@@ -219,6 +275,28 @@ export default function ReadiumReader({
 		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[book.ebook?.bookmarks],
+	)
+
+	const highlightColor = colors?.highlight ?? '#FFEB3B'
+
+	useEffect(
+		() => {
+			const bookAnnotations = book.ebook?.annotations ?? []
+			store.storeAnnotations(
+				bookAnnotations.map((a) => ({
+					id: a.id,
+					bookId: book.id,
+					locator: a.locator as ReadiumLocator,
+					color: highlightColor,
+					annotationText: a.annotationText ?? undefined,
+					createdAt: new Date(a.createdAt),
+					updatedAt: new Date(a.updatedAt),
+				})),
+			)
+		},
+		// eslint-disable-next-line react-compiler/react-compiler
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[book.ebook?.annotations, highlightColor],
 	)
 
 	const closeAllSheets = useEpubSheetStore((state) => state.closeAllSheets)
@@ -283,14 +361,127 @@ export default function ReadiumReader({
 		setControlsVisible(!controlsVisible)
 	}, [controlsVisible, setControlsVisible])
 
-	const handleSelection = useCallback(
-		(event: {
-			nativeEvent: { cleared?: boolean; x?: number; y?: number; locator?: ReadiumLocator }
-		}) => {
-			// eslint-disable-next-line no-console
-			console.log('Text selection:', event.nativeEvent)
+	const createAnnotationSheetRef = useRef<CreateAnnotationSheetRef>(null)
+	const updateAnnotationSheetRef = useRef<UpdateAnnotationSheetRef>(null)
+
+	const handleHighlightRequest = useCallback(
+		async (event: { nativeEvent: HighlightRequestEvent }) => {
+			if (!store.onCreateAnnotation) return
+			const { locator } = event.nativeEvent
+			try {
+				const result = await store.onCreateAnnotation(locator)
+				if (result?.id) {
+					store.addAnnotation({
+						id: result.id,
+						bookId: book.id,
+						locator,
+						color: highlightColor,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+				}
+			} catch (error) {
+				console.error('Failed to create annotation:', error)
+			}
 		},
-		[],
+		[store, book.id, highlightColor],
+	)
+
+	const handleNoteRequest = useCallback((event: { nativeEvent: NoteRequestEvent }) => {
+		const { locator, text } = event.nativeEvent
+		createAnnotationSheetRef.current?.open(locator, text)
+	}, [])
+
+	const handleAnnotationTap = useCallback(
+		(event: { nativeEvent: DecoratorTapEvent }) => {
+			const { decorationId } = event.nativeEvent
+			const highlight = store.getAnnotation(decorationId)
+			if (highlight) {
+				updateAnnotationSheetRef.current?.open(highlight)
+			}
+		},
+		[store],
+	)
+
+	const handleEditHighlight = useCallback(
+		(event: { nativeEvent: { decorationId: string } }) => {
+			const { decorationId } = event.nativeEvent
+			const highlight = store.getAnnotation(decorationId)
+			if (highlight) {
+				updateAnnotationSheetRef.current?.open(highlight)
+			}
+		},
+		[store],
+	)
+
+	const handleNativeDeleteAnnotation = useCallback(
+		async (event: { nativeEvent: { decorationId: string } }) => {
+			if (!store.onDeleteAnnotation) return
+			const { decorationId } = event.nativeEvent
+			try {
+				await store.onDeleteAnnotation(decorationId)
+				store.removeAnnotation(decorationId)
+			} catch (error) {
+				console.error('Failed to delete annotation:', error)
+			}
+		},
+		[store],
+	)
+
+	const handleCreateAnnotation = useCallback(
+		async (locator: ReadiumLocator, annotationText?: string) => {
+			if (!store.onCreateAnnotation) return
+			try {
+				const result = await store.onCreateAnnotation(locator, annotationText)
+				if (result?.id) {
+					store.addAnnotation({
+						id: result.id,
+						bookId: book.id,
+						locator,
+						color: highlightColor,
+						annotationText,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+				}
+				await readerRef.current?.clearSelection()
+			} catch (error) {
+				console.error('Failed to create annotation:', error)
+			}
+		},
+		[store, book.id, highlightColor],
+	)
+
+	const handleAnnotationChange = useCallback(
+		async (decorationId: string, annotationText: string | undefined) => {
+			if (!store.onUpdateAnnotation) return
+			const existing = store.getAnnotation(decorationId)
+			if (!existing) return
+			try {
+				await store.onUpdateAnnotation(decorationId, annotationText ?? null)
+				store.updateAnnotation({
+					...existing,
+					annotationText,
+					updatedAt: new Date(),
+				})
+			} catch (error) {
+				console.error('Failed to update annotation:', error)
+			}
+		},
+		[store],
+	)
+
+	const handleDeleteHighlight = useCallback(
+		async (decorationId: string) => {
+			if (!store.onDeleteAnnotation) return
+			try {
+				await store.onDeleteAnnotation(decorationId)
+				store.removeAnnotation(decorationId)
+			} catch (error) {
+				console.error('Failed to delete annotation:', error)
+			}
+		},
+		[store],
 	)
 
 	const insets = useSafeAreaInsets()
@@ -313,10 +504,15 @@ export default function ReadiumReader({
 				bookId={book.id}
 				url={localUri}
 				initialLocator={initialLocator}
+				decorations={store.annotations}
 				onBookLoaded={({ nativeEvent }) => handleBookLoaded(nativeEvent)}
 				onLocatorChange={({ nativeEvent: locator }) => handleLocationChanged(locator)}
 				onMiddleTouch={handleMiddleTouch}
-				onSelection={handleSelection}
+				onHighlightRequest={handleHighlightRequest}
+				onNoteRequest={handleNoteRequest}
+				onAnnotationTap={handleAnnotationTap}
+				onEditHighlight={handleEditHighlight}
+				onDeleteHighlight={handleNativeDeleteAnnotation}
 				style={{
 					flex: 1,
 					marginTop: insets.top + HEADER_HEIGHT,
@@ -330,6 +526,17 @@ export default function ReadiumReader({
 			<EpubSettingsSheet />
 			<EpubLocationsSheet />
 			<CustomizeThemeSheet />
+
+			<CreateAnnotationSheet
+				ref={createAnnotationSheetRef}
+				onCreateAnnotation={handleCreateAnnotation}
+				onDismiss={() => readerRef.current?.clearSelection()}
+			/>
+			<UpdateAnnotationSheet
+				ref={updateAnnotationSheetRef}
+				onAnnotationChange={handleAnnotationChange}
+				onDelete={handleDeleteHighlight}
+			/>
 		</View>
 	)
 }
