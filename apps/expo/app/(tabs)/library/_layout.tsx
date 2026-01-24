@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef } from 'react'
 import { Platform, View } from 'react-native'
 import { useStore } from 'zustand'
 
-import { DownloadsHeaderMenu, DownloadsHeaderSortMenu } from '~/components/downloads'
+import { DownloadsHeaderMenu, DownloadsHeaderSortMenu } from '~/components/localLibrary'
 import { SelectionLeftScreenHeader, SelectionRightScreenHeader } from '~/components/selection'
 import { IS_IOS_24_PLUS } from '~/lib/constants'
 import { usePreferencesStore } from '~/stores'
@@ -33,6 +33,7 @@ function AndroidHeaderWrapper({
 export default function Screen() {
 	const animationEnabled = usePreferencesStore((state) => !state.reduceAnimations)
 
+	// eslint-disable-next-line react-hooks/refs
 	const store = useRef(createSelectionStore()).current
 
 	const isSelecting = useStore(store, (state) => state.isSelecting)
@@ -80,7 +81,7 @@ export default function Screen() {
 			<QueryClientProvider client={offlineQueryClient}>
 				<Stack
 					screenOptions={{
-						title: 'Downloads',
+						title: 'Local Library',
 						headerShown: Platform.OS === 'ios',
 						headerTransparent: Platform.OS === 'ios',
 						headerLargeTitle: true,

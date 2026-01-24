@@ -11,9 +11,13 @@ export type DownloadSort = {
 	direction: DownloadSortDirection
 }
 
+export type DownloadSourceFilter = 'all' | 'server' | 'imported'
+
 export type IDownloadsStore = {
 	sort: DownloadSort
 	setSort: (sort: DownloadSort) => void
+	sourceFilter: DownloadSourceFilter
+	setSourceFilter: (filter: DownloadSourceFilter) => void
 	fetchCounter: number
 	setFetchCounter: (count: number) => void
 	increment: () => void
@@ -28,12 +32,15 @@ export const useDownloadsState = create<IDownloadsStore>()(
 			increment: () => set((state) => ({ fetchCounter: state.fetchCounter + 1 })),
 			sort: { option: 'ADDED_AT', direction: 'DESC' },
 			setSort: (sort: DownloadSort) => set({ sort }),
+			sourceFilter: 'all',
+			setSourceFilter: (filter: DownloadSourceFilter) => set({ sourceFilter: filter }),
 		}),
 		{
 			name: 'downloads-storage',
 			storage: createJSONStorage(() => AsyncStorage),
-			// We only care about persisting the sort option
-			partialize: (state) => ({ sort: state.sort }),
+			// We only care about persisting the sort option and source filter
+			partialize: (state) => ({ sort: state.sort, sourceFilter: state.sourceFilter }),
+			version: 2,
 		},
 	),
 )

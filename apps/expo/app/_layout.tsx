@@ -27,6 +27,7 @@ import migrations from '~/drizzle/migrations'
 import { reactNavigationIntegration } from '~/index'
 import { setAndroidNavigationBar } from '~/lib/android-navigation-bar'
 import { NAV_THEME, useColors } from '~/lib/constants'
+import { useFileImportListener } from '~/lib/import'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { usePreferencesStore } from '~/stores'
 import { useHideStatusBar } from '~/stores/reader'
@@ -120,6 +121,8 @@ export default function RootLayout() {
 		})
 		return () => subscription.remove()
 	}, [])
+
+	useFileImportListener()
 
 	if (!isColorSchemeLoaded || !isAnimationReady) {
 		return <View className="flex-1 bg-background" />

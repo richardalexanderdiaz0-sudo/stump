@@ -9,7 +9,7 @@ import { useCallback, useEffect } from 'react'
 import { toast } from 'sonner-native'
 
 import { useActiveServerSafe } from '~/components/activeServer'
-import { useDownloadsState } from '~/components/downloads/store'
+import { useDownloadsState } from '~/components/localLibrary/store'
 import { db, downloadedFiles, DownloadRepository, readProgress } from '~/db'
 import { booksDirectory, bookThumbnailPath, ensureDirectoryExists } from '~/lib/filesystem'
 import { useSavedServerStore } from '~/stores/savedServer'

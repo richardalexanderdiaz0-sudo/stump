@@ -1,5 +1,5 @@
 import { FlashList } from '@shopify/flash-list'
-import { asc, desc, eq, inArray } from 'drizzle-orm'
+import { asc, desc, eq, inArray, ne } from 'drizzle-orm'
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
 import { useFocusEffect } from 'expo-router'
 import groupBy from 'lodash/groupBy'
@@ -13,19 +13,21 @@ import {
 	DownloadRowItem,
 	intoDownloadedFile,
 	NoDownloadsOnDevice,
-} from '~/components/downloads'
-import { useDownloadsState } from '~/components/downloads/store'
+} from '~/components/localLibrary'
+import { useDownloadsState } from '~/components/localLibrary/store'
 import { Text } from '~/components/ui'
 import { db, downloadedFiles, libraryRefs, readProgress, seriesRefs } from '~/db'
+import { LOCAL_LIBRARY_SERVER_ID } from '~/lib/localLibrary'
 import { usePreferencesStore } from '~/stores'
 import { useSelectionStore } from '~/stores/selection'
 
 export default function Screen() {
 	// Note: The id is a workaround for https://github.com/drizzle-team/drizzle-orm/issues/2660
-	const { id, increment, sortConfig } = useDownloadsState((state) => ({
+	const { id, increment, sortConfig, sourceFilter } = useDownloadsState((state) => ({
 		id: state.fetchCounter,
 		increment: state.increment,
 		sortConfig: state.sort,
+		sourceFilter: state.sourceFilter,
 	}))
 
 	const orderFn = match(sortConfig.direction)
@@ -39,6 +41,11 @@ export default function Screen() {
 		.with('SERIES', () => [orderFn(seriesRefs.name), asc(downloadedFiles.bookName)])
 		.otherwise(() => orderFn(downloadedFiles.downloadedAt))
 
+	const whereClause = match(sourceFilter)
+		.with('imported', () => eq(downloadedFiles.serverId, LOCAL_LIBRARY_SERVER_ID))
+		.with('server', () => ne(downloadedFiles.serverId, LOCAL_LIBRARY_SERVER_ID))
+		.otherwise(() => undefined)
+
 	const { data } = useLiveQuery(
 		db
 			.select()
@@ -46,8 +53,9 @@ export default function Screen() {
 			.leftJoin(readProgress, eq(downloadedFiles.id, readProgress.bookId))
 			.leftJoin(seriesRefs, eq(downloadedFiles.seriesId, seriesRefs.id))
 			.leftJoin(libraryRefs, eq(seriesRefs.libraryId, libraryRefs.id))
+			.where(whereClause)
 			.orderBy(() => dbOrderBy),
-		[id, sortConfig],
+		[id, sortConfig, sourceFilter],
 	)
 
 	const showCuratedDownloads = usePreferencesStore((state) => state.showCuratedDownloads)
@@ -64,6 +72,7 @@ export default function Screen() {
 					resetSelection()
 				}
 			},
+			// eslint-disable-next-line react-compiler/react-compiler
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 			[increment],
 		),
@@ -129,6 +138,7 @@ export default function Screen() {
 			selectionStore.setItemIdents(allIds)
 			selectionStore.registerCustomActions(customSelectionActions)
 		},
+		// eslint-disable-next-line react-compiler/react-compiler
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[data],
 	)

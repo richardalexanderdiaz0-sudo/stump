@@ -19,11 +19,10 @@ export default function DownloadsHeaderMenu() {
 				state.patch({ showCuratedDownloads: value }),
 		}),
 	)
-	const refetchDownloads = useDownloadsState((state) => state.increment)
-
-	const setIsSelecting = useSelectionStore((state) => state.setIsSelecting)
-
 	const { deleteAllDownloads } = useDownload()
+
+	const refetchDownloads = useDownloadsState((state) => state.increment)
+	const setIsSelecting = useSelectionStore((state) => state.setIsSelecting)
 
 	const onDeleteAllDownloads = async () => {
 		await deleteAllDownloads()
@@ -86,7 +85,7 @@ export default function DownloadsHeaderMenu() {
 									ios: 'trash',
 									android: Trash,
 								},
-								label: 'Delete Downloads',
+								label: 'Delete Books',
 								onPress: () => setIsShowingDeleteConfirm(true),
 								role: 'destructive',
 								disabled: downloadsCount === 0,
@@ -97,7 +96,7 @@ export default function DownloadsHeaderMenu() {
 			/>
 
 			<Dialog.Container visible={isShowingDeleteConfirm}>
-				<Dialog.Title>Are you sure you want to delete all downloads?</Dialog.Title>
+				<Dialog.Title>Are you sure you want to delete your local library?</Dialog.Title>
 
 				<Dialog.Description>This action cannot be undone.</Dialog.Description>
 
