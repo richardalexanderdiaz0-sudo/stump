@@ -6,7 +6,7 @@ import {
 	useSDK,
 	useSuspenseGraphQL,
 } from '@stump/client'
-import { Dimension, graphql } from '@stump/graphql'
+import { graphql } from '@stump/graphql'
 import { useQueryClient } from '@tanstack/react-query'
 import { eq } from 'drizzle-orm'
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
@@ -25,7 +25,12 @@ import {
 import { NextInSeriesBookRef } from '~/components/book/reader/image/context'
 import { db, downloadedFiles } from '~/db'
 import { booksDirectory } from '~/lib/filesystem'
-import { useAppState, useSyncOnlineToOfflineProgress } from '~/lib/hooks'
+import {
+	useAppState,
+	useSyncOnlineToOfflineAnnotations,
+	useSyncOnlineToOfflineBookmarks,
+	useSyncOnlineToOfflineProgress,
+} from '~/lib/hooks'
 import { intoReadiumLocator, ReadiumLocator } from '~/modules/readium'
 import { usePreferencesStore, useReaderStore } from '~/stores'
 import { useBookPreferences, useBookTimer } from '~/stores/reader'
@@ -110,9 +115,47 @@ export const query = graphql(`
 			ebook {
 				bookmarks {
 					id
-					userId
 					epubcfi
 					mediaId
+					previewContent
+					locator {
+						chapterTitle
+						href
+						locations {
+							fragments
+							progression
+							position
+							totalProgression
+							cssSelector
+							partialCfi
+						}
+					}
+					createdAt
+				}
+				annotations {
+					id
+					annotationText
+					createdAt
+					updatedAt
+					locator {
+						chapterTitle
+						href
+						title
+						type
+						locations {
+							fragments
+							progression
+							position
+							totalProgression
+							cssSelector
+							partialCfi
+						}
+						text {
+							after
+							before
+							highlight
+						}
+					}
 				}
 				spine {
 					id
@@ -130,6 +173,85 @@ const mutation = graphql(`
 	mutation UpdateReadProgression($id: ID!, $input: MediaProgressInput!) {
 		updateMediaProgress(id: $id, input: $input) {
 			__typename
+		}
+	}
+`)
+
+const createBookmarkMutation = graphql(`
+	mutation CreateBookmarkMobile($input: BookmarkInput!) {
+		createBookmark(input: $input) {
+			id
+			epubcfi
+			previewContent
+			mediaId
+			locator {
+				chapterTitle
+				href
+				locations {
+					fragments
+					progression
+					position
+					totalProgression
+					cssSelector
+					partialCfi
+				}
+			}
+		}
+	}
+`)
+
+const deleteBookmarkMutation = graphql(`
+	mutation DeleteBookmarkMobile($id: String!) {
+		deleteBookmark(id: $id) {
+			id
+		}
+	}
+`)
+
+const createAnnotationMutation = graphql(`
+	mutation CreateAnnotationMobile($input: CreateAnnotationInput!) {
+		createAnnotation(input: $input) {
+			id
+			annotationText
+			createdAt
+			updatedAt
+			locator {
+				chapterTitle
+				href
+				title
+				type
+				locations {
+					fragments
+					progression
+					position
+					totalProgression
+					cssSelector
+					partialCfi
+				}
+				text {
+					after
+					before
+					highlight
+				}
+			}
+		}
+	}
+`)
+
+const updateAnnotationMutation = graphql(`
+	mutation UpdateAnnotationMobile($input: UpdateAnnotationInput!) {
+		updateAnnotation(input: $input) {
+			id
+			annotationText
+			updatedAt
+		}
+	}
+`)
+
+const deleteAnnotationMutation = graphql(`
+	mutation DeleteAnnotationMobile($id: String!) {
+		deleteAnnotation(id: $id) {
+			id
 		}
 	}
 `)
@@ -180,7 +302,7 @@ export default function Screen() {
 	}, [book.nextInSeries.nodes])
 
 	const {
-		preferences: { preferSmallImages, trackElapsedTime },
+		preferences: { trackElapsedTime },
 	} = useBookPreferences({ book })
 	const { pause, resume, totalSeconds, isRunning, reset } = useBookTimer(book?.id || '', {
 		initial: book?.readProgress?.elapsedSeconds,
@@ -232,11 +354,178 @@ export default function Screen() {
 						},
 						elapsedSeconds: totalSeconds,
 						percentage,
+						isComplete: percentage >= 0.99,
 					},
 				},
 			})
 		},
 		[book.id, totalSeconds, updateProgress],
+	)
+
+	const onReachedEnd = useCallback(
+		(locator: ReadiumLocator) => {
+			updateProgress({
+				id: book.id,
+				input: {
+					epub: {
+						locator: {
+							readium: {
+								chapterTitle: locator.chapterTitle,
+								href: locator.href,
+								locations: locator.locations,
+								text: locator.text,
+								title: locator.title,
+								type: locator.type || 'application/xhtml+xml',
+							},
+						},
+						isComplete: true,
+					},
+				},
+			})
+		},
+		[book.id, updateProgress],
+	)
+
+	const { syncCreate: syncBookmarkCreate, syncDelete: syncBookmarkDelete } =
+		useSyncOnlineToOfflineBookmarks({
+			bookId: book.id,
+			serverId,
+		})
+
+	const { mutateAsync: createBookmark } = useGraphQLMutation(createBookmarkMutation, {
+		onError: (error) => {
+			console.error('Failed to create bookmark:', error)
+		},
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ['readBook', book.id] })
+			const { id, locator, previewContent } = data.createBookmark
+			if (locator) {
+				syncBookmarkCreate(
+					id,
+					{
+						...locator,
+						type: 'application/xhtml+xml',
+					},
+					previewContent,
+				)
+			}
+		},
+	})
+
+	const { mutateAsync: deleteBookmark } = useGraphQLMutation(deleteBookmarkMutation, {
+		onError: (error) => {
+			console.error('Failed to delete bookmark:', error)
+		},
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ['readBook', book.id] })
+			syncBookmarkDelete(data.deleteBookmark.id)
+		},
+	})
+
+	const onBookmark = useCallback(
+		async (locator: ReadiumLocator, previewContent?: string) => {
+			const result = await createBookmark({
+				input: {
+					mediaId: book.id,
+					locator: {
+						readium: {
+							chapterTitle: locator.chapterTitle,
+							href: locator.href,
+							locations: locator.locations,
+							text: locator.text,
+							title: locator.title,
+							type: locator.type || 'application/xhtml+xml',
+						},
+					},
+					previewContent,
+				},
+			})
+			return { id: result.createBookmark.id }
+		},
+		[book.id, createBookmark],
+	)
+
+	const onDeleteBookmark = useCallback(
+		async (bookmarkId: string) => {
+			await deleteBookmark({ id: bookmarkId })
+		},
+		[deleteBookmark],
+	)
+
+	const { syncCreate, syncUpdate, syncDelete } = useSyncOnlineToOfflineAnnotations({
+		bookId: book.id,
+		serverId,
+	})
+
+	const { mutateAsync: createAnnotation } = useGraphQLMutation(createAnnotationMutation, {
+		onError: (error) => {
+			console.error('Failed to create annotation:', error)
+		},
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ['readBook', book.id] })
+			const { id, locator, annotationText } = data.createAnnotation
+			syncCreate(id, intoReadiumLocator(locator), annotationText)
+		},
+	})
+
+	const { mutateAsync: updateAnnotation } = useGraphQLMutation(updateAnnotationMutation, {
+		onError: (error) => {
+			console.error('Failed to update annotation:', error)
+		},
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ['readBook', book.id] })
+			syncUpdate(data.updateAnnotation.id, data.updateAnnotation.annotationText ?? null)
+		},
+	})
+
+	const { mutateAsync: deleteAnnotation } = useGraphQLMutation(deleteAnnotationMutation, {
+		onError: (error) => {
+			console.error('Failed to delete annotation:', error)
+		},
+		onSuccess: (data) => {
+			queryClient.invalidateQueries({ queryKey: ['readBook', book.id] })
+			syncDelete(data.deleteAnnotation.id)
+		},
+	})
+
+	const onCreateAnnotation = useCallback(
+		async (locator: ReadiumLocator, annotationText?: string) => {
+			const result = await createAnnotation({
+				input: {
+					mediaId: book.id,
+					locator: {
+						chapterTitle: locator.chapterTitle ?? '',
+						href: locator.href,
+						title: locator.title,
+						type: locator.type || 'application/xhtml+xml',
+						locations: locator.locations,
+						text: locator.text,
+					},
+					annotationText,
+				},
+			})
+			return { id: result.createAnnotation.id }
+		},
+		[book.id, createAnnotation],
+	)
+
+	const onUpdateAnnotation = useCallback(
+		async (annotationId: string, annotationText: string | null) => {
+			await updateAnnotation({
+				input: {
+					id: annotationId,
+					annotationText,
+				},
+			})
+		},
+		[updateAnnotation],
+	)
+
+	const onDeleteAnnotation = useCallback(
+		async (annotationId: string) => {
+			await deleteAnnotation({ id: annotationId })
+		},
+		[deleteAnnotation],
 	)
 
 	const setIsReading = useReaderStore((state) => state.setIsReading)
@@ -281,24 +570,20 @@ export default function Screen() {
 	 * Invalidate the book query when a reader is unmounted so that the book overview
 	 * is updated with the latest read progress
 	 */
-	useEffect(
-		() => {
-			NavigationBar.setVisibilityAsync('hidden')
-			return () => {
-				NavigationBar.setVisibilityAsync('visible')
-				Promise.all([
-					queryClient.refetchQueries({ queryKey: ['bookById', bookID], exact: false }),
-					queryClient.refetchQueries({ queryKey: ['readBook', bookID], exact: false }),
-					queryClient.refetchQueries({ queryKey: ['continueReading'], exact: false }),
-					queryClient.refetchQueries({ queryKey: ['onDeck'], exact: false }),
-					queryClient.refetchQueries({ queryKey: ['recentlyAddedBooks'], exact: false }),
-					queryClient.refetchQueries({ queryKey: ['recentlyAddedSeries'], exact: false }),
-				])
-			}
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[],
-	)
+	useEffect(() => {
+		NavigationBar.setVisibilityAsync('hidden')
+		return () => {
+			NavigationBar.setVisibilityAsync('visible')
+			Promise.all([
+				queryClient.refetchQueries({ queryKey: ['bookById', bookID], exact: false }),
+				queryClient.refetchQueries({ queryKey: ['readBook', bookID], exact: false }),
+				queryClient.refetchQueries({ queryKey: ['continueReading'], exact: false }),
+				queryClient.refetchQueries({ queryKey: ['onDeck'], exact: false }),
+				queryClient.refetchQueries({ queryKey: ['recentlyAddedBooks'], exact: false }),
+				queryClient.refetchQueries({ queryKey: ['recentlyAddedSeries'], exact: false }),
+			])
+		}
+	}, [queryClient, bookID])
 
 	const requestHeaders = useCallback(
 		() => ({
@@ -324,9 +609,15 @@ export default function Screen() {
 				book={book}
 				initialLocator={initialLocator ? intoReadiumLocator(initialLocator) : undefined}
 				onLocationChanged={onLocationChanged}
+				onReachedEnd={onReachedEnd}
+				onBookmark={onBookmark}
+				onDeleteBookmark={onDeleteBookmark}
 				offlineUri={offlineUri}
 				serverId={serverId}
 				requestHeaders={requestHeaders}
+				onCreateAnnotation={onCreateAnnotation}
+				onUpdateAnnotation={onUpdateAnnotation}
+				onDeleteAnnotation={onDeleteAnnotation}
 			/>
 		)
 	} else if (book.extension.match(PDF_EXTENSION) && preferNativePdfReader) {
@@ -346,16 +637,6 @@ export default function Screen() {
 				initialPage={currentProgressPage}
 				book={book}
 				pageURL={(page: number) => sdk.media.bookPageURL(book.id, page)}
-				// TODO: I added this on a whim, decide if I want to support it
-				pageThumbnailURL={
-					preferSmallImages
-						? (page: number) =>
-								sdk.media.bookPageURL(book.id, page, {
-									dimension: Dimension.Height,
-									size: 600,
-								})
-						: undefined
-				}
 				onPageChanged={onPageChanged}
 				resetTimer={reset}
 				nextInSeries={nextInSeries}

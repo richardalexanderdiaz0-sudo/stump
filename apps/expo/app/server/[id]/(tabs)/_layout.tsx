@@ -6,7 +6,7 @@ import { Home, Search, SquareLibrary } from 'lucide-react-native'
 import { useEffect } from 'react'
 import { Platform } from 'react-native'
 
-import ServerErrorBoundary from '~/components/ServerErrorBoundary'
+import { ServerErrorBoundary } from '~/components/error'
 import { Icon as JSIcon } from '~/components/ui'
 import { useColors } from '~/lib/constants'
 import { useAutoSyncActiveServer } from '~/lib/hooks'
@@ -20,9 +20,10 @@ export default function TabLayout() {
 	const accentColor = usePreferencesStore((state) => state.accentColor)
 	const animationEnabled = usePreferencesStore((state) => !state.reduceAnimations)
 	const setUser = useUserStore((state) => state.setUser)
+	const autoSyncEnabled = usePreferencesStore((state) => state.autoSyncLocalData)
 
 	useAutoSyncActiveServer({
-		enabled: sdk.isAuthed,
+		enabled: !!sdk.token && autoSyncEnabled,
 	})
 
 	const { onUnauthenticatedResponse } = useClientContext()

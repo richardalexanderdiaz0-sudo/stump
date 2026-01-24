@@ -97,6 +97,7 @@ impl Series {
 		&self,
 		ctx: &Context<'_>,
 		#[graphql(default, validator(minimum = 1))] take: Option<u64>,
+		#[graphql(default, validator(minimum = 0))] skip: Option<u64>,
 	) -> Result<Vec<Media>> {
 		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
@@ -106,6 +107,7 @@ impl Series {
 			// TODO: Consider allowing custom ordering?
 			.order_by_asc(media::Column::Name)
 			.apply_if(take, |query, take| query.limit(take))
+			.apply_if(skip, |query, skip| query.offset(skip))
 			.into_model::<media::ModelWithMetadata>()
 			.all(conn)
 			.await?;
@@ -319,6 +321,58 @@ impl Series {
 			..Default::default()
 		})
 	}
+
+	async fn stats(
+		&self,
+		ctx: &Context<'_>,
+		all_users: Option<bool>,
+	) -> Result<SeriesStats> {
+		let AuthContext { user, .. } = ctx.data::<AuthContext>()?;
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let result = conn
+			.query_one(Statement::from_sql_and_values(
+				DatabaseBackend::Sqlite,
+				r"
+				WITH base_counts AS (
+					SELECT
+						COUNT(*) AS book_count,
+						IFNULL(SUM(media.size), 0) AS total_bytes
+					FROM
+						media
+					WHERE
+						media.series_id = $1
+				),
+				progress_counts AS (
+					SELECT
+						COUNT(frs.id) AS completed_books,
+						COUNT(rs.id) AS in_progress_books,
+						IFNULL(SUM(frs.elapsed_seconds), 0) + IFNULL(SUM(rs.elapsed_seconds), 0) AS total_reading_time_seconds
+					FROM
+						media m
+						LEFT JOIN finished_reading_sessions frs ON frs.media_id = m.id
+						LEFT JOIN reading_sessions rs ON rs.media_id = m.id
+					WHERE
+						m.series_id = $1
+						AND ($2 IS TRUE OR (rs.user_id = $3 OR frs.user_id = $3))
+				)
+				SELECT
+					*
+				FROM
+					base_counts
+					INNER JOIN progress_counts;
+				",
+				[
+					self.model.id.clone().into(),
+					all_users.unwrap_or(false).into(),
+					user.id.clone().into(),
+				],
+			))
+			.await?
+			.ok_or("Series stats failed to be calculated")?;
+
+		Ok(SeriesStats::from_query_result(&result, "")?)
+	}
 }
 
 async fn get_series_progress(ctx: &Context<'_>, series_id: String) -> Result<(i64, i64)> {
@@ -337,6 +391,17 @@ async fn get_series_progress(ctx: &Context<'_>, series_id: String) -> Result<(i6
 		.unwrap_or(0i64);
 
 	Ok((media_count, finished_count))
+}
+
+// Note: SQLx does not support u64 :'(
+// See https://github.com/launchbadge/sqlx/issues/499
+#[derive(Debug, FromQueryResult, SimpleObject)]
+pub struct SeriesStats {
+	book_count: i64,
+	total_bytes: i64,
+	completed_books: i64,
+	in_progress_books: i64,
+	total_reading_time_seconds: i64,
 }
 
 #[cfg(test)]

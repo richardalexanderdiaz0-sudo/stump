@@ -102,10 +102,18 @@ impl UserMutation {
 			..Default::default()
 		};
 
-		user_preferences.save(&txn).await.map_err(|e| {
-			tracing::error!(error = ?e, "Failed to create user preferences");
-			"Failed to create user preferences"
-		})?;
+		let user_preferences = user_preferences
+			.save(&txn)
+			.await
+			.map_err(|e| {
+				tracing::error!(error = ?e, "Failed to create user preferences");
+				"Failed to create user preferences"
+			})?
+			.try_into_model()?;
+
+		let mut user_model = user_model.into_active_model();
+		user_model.user_preferences_id = Set(Some(user_preferences.id));
+		let user_model = user_model.update(&txn).await?;
 
 		txn.commit().await?;
 
@@ -393,9 +401,11 @@ async fn update_user_preferences_by_id(
 		),
 		enable_hide_scrollbar: Set(user_preferences.enable_hide_scrollbar),
 		enable_job_overlay: Set(user_preferences.enable_job_overlay),
+		enable_fancy_animations: Set(user_preferences.enable_fancy_animations),
 		prefer_accent_color: Set(user_preferences.prefer_accent_color),
 		show_thumbnails_in_headers: Set(user_preferences.show_thumbnails_in_headers),
 		thumbnail_ratio: Set(user_preferences.thumbnail_ratio),
+		thumbnail_placeholder_style: Set(user_preferences.thumbnail_placeholder_style),
 		enable_alphabet_select: Set(user_preferences.enable_alphabet_select),
 		home_arrangement: NotSet,
 		navigation_arrangement: NotSet,

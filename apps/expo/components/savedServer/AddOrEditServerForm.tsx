@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { checkUrl, formatApiURL } from '@stump/sdk'
+import { checkOPDSURL, checkUrl, formatApiURL } from '@stump/sdk'
 import isEqual from 'lodash/isEqual'
+import omit from 'lodash/omit'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm, useFormState, useWatch } from 'react-hook-form'
 import { FocusEvent, Platform, Pressable, View } from 'react-native'
@@ -45,9 +46,12 @@ export default function AddOrEditServerForm({
 	const maskURLs = usePreferencesStore((state) => state.maskURLs)
 
 	const [didConnect, setDidConnect] = useState(false)
-	const url = form.watch('url')
+
+	const [kind, url] = useWatch({ control, name: ['kind', 'url'] })
+
 	const checkConnection = useCallback(async () => {
-		const isValid = await checkUrl(formatApiURL(url, 'v2'))
+		const isValid =
+			kind === 'stump' ? await checkUrl(formatApiURL(url, 'v2')) : await checkOPDSURL(url)
 		if (!isValid) {
 			form.setError('url', {
 				type: 'manual',
@@ -57,7 +61,7 @@ export default function AddOrEditServerForm({
 			form.clearErrors('url')
 			setDidConnect(true)
 		}
-	}, [url, form])
+	}, [kind, url, form, setDidConnect])
 
 	const [isAddingHeader, setIsAddingHeader] = useState(false)
 
@@ -88,7 +92,6 @@ export default function AddOrEditServerForm({
 		setIsAddingHeader(false)
 	}
 
-	const kind = form.watch('kind')
 	const { setValue } = form
 	useEffect(() => {
 		if (kind !== 'stump') {
@@ -106,11 +109,10 @@ export default function AddOrEditServerForm({
 		}
 	}, [didConnect])
 
-	const [defaultServer, stumpOPDS, authMode] = form.watch([
-		'defaultServer',
-		'stumpOPDS',
-		'authMode',
-	])
+	const [defaultServer, stumpOPDS, authMode] = useWatch({
+		control,
+		name: ['defaultServer', 'stumpOPDS', 'authMode'],
+	})
 
 	const renderAuthMode = () => {
 		if (authMode === 'default') {
@@ -211,29 +213,6 @@ export default function AddOrEditServerForm({
 		},
 		[form],
 	)
-
-	function RenderHeaderAction(
-		_: SharedValue<number>,
-		drag: SharedValue<number>,
-		onDelete: () => void,
-	) {
-		const styleAnimation = useAnimatedStyle(() => {
-			return {
-				transform: [{ translateX: drag.value + 50 }],
-			}
-		})
-
-		return (
-			<Reanimated.View style={styleAnimation}>
-				<Pressable
-					className="h-full w-14 items-center justify-center bg-fill-danger"
-					onPress={onDelete}
-				>
-					{({ pressed }) => <Text className={cn({ 'opacity-80': pressed })}>Delete</Text>}
-				</Pressable>
-			</Reanimated.View>
-		)
-	}
 
 	const insets = useSafeAreaInsets()
 
@@ -475,6 +454,29 @@ export default function AddOrEditServerForm({
 	)
 }
 
+function RenderHeaderAction(
+	_: SharedValue<number>,
+	drag: SharedValue<number>,
+	onDelete: () => void,
+) {
+	const styleAnimation = useAnimatedStyle(() => {
+		return {
+			transform: [{ translateX: drag.value + 50 }],
+		}
+	})
+
+	return (
+		<Reanimated.View style={styleAnimation}>
+			<Pressable
+				className="h-full w-14 items-center justify-center bg-fill-danger"
+				onPress={onDelete}
+			>
+				{({ pressed }) => <Text className={cn({ 'opacity-80': pressed })}>Delete</Text>}
+			</Pressable>
+		</Reanimated.View>
+	)
+}
+
 const defaultValues = {
 	defaultServer: false,
 	kind: 'stump',
@@ -546,60 +548,62 @@ const headerSchema = z
 	})
 
 const createSchema = (names: string[]) =>
-	z
-		.object({
-			name: z
-				.string()
-				.nonempty()
-				.min(1)
-				.refine((value) => !names.includes(value), {
-					message: 'Name already exists',
-				}),
-			url: z.string().url(),
-			kind: z.union([z.literal('stump'), z.literal('opds')]).default('stump'),
-			defaultServer: z.boolean().default(false),
-			stumpOPDS: z.boolean().default(false),
-			authMode: z
-				.union([z.literal('token'), z.literal('basic'), z.literal('default')])
-				.default('default'),
-			token: z.string().optional(),
-			basicUser: z.string().optional(),
-			basicPassword: z.string().optional(),
-			customHeaders: z.array(headerSchema).optional(),
-		})
-		.transform((data) => {
-			const baseConfig =
-				data.authMode !== 'default'
-					? {
-							auth: data.token
-								? { bearer: data.token as string }
-								: data.basicUser
-									? {
-											basic: {
-												username: data.basicUser as string,
-												password: data.basicPassword as string,
-											},
-										}
-									: undefined,
-						}
-					: undefined
+	z.object({
+		name: z
+			.string()
+			.nonempty()
+			.min(1)
+			.refine((value) => !names.includes(value), {
+				message: 'Name already exists',
+			}),
+		url: z.string().url(),
+		kind: z.union([z.literal('stump'), z.literal('opds')]).default('stump'),
+		defaultServer: z.boolean().default(false),
+		stumpOPDS: z.boolean().default(false),
+		authMode: z
+			.union([z.literal('token'), z.literal('basic'), z.literal('default')])
+			.default('default'),
+		token: z.string().optional(),
+		basicUser: z.string().optional(),
+		basicPassword: z.string().optional(),
+		customHeaders: z.array(headerSchema).optional(),
+	})
+export type AddOrEditServerSchema = z.infer<ReturnType<typeof createSchema>>
 
-			return {
-				...data,
-				stumpOPDS: data.kind === 'stump' ? data.stumpOPDS : false,
-				config:
-					!!data.customHeaders && data.customHeaders.length > 0
-						? {
-								...baseConfig,
-								customHeaders: data.customHeaders.reduce(
-									(acc, { key, value }) => ({
-										...acc,
-										[key]: value,
-									}),
-									{},
-								),
-							}
-						: baseConfig,
-			}
-		})
-type AddOrEditServerSchema = z.infer<ReturnType<typeof createSchema>>
+export const transformFormData = (data: AddOrEditServerSchema) => {
+	const baseConfig =
+		data.authMode !== 'default'
+			? {
+					auth: data.token
+						? { bearer: data.token as string }
+						: data.basicUser
+							? {
+									basic: {
+										username: data.basicUser as string,
+										password: data.basicPassword as string,
+									},
+								}
+							: undefined,
+				}
+			: undefined
+
+	const config =
+		!!data.customHeaders && data.customHeaders.length > 0
+			? {
+					...baseConfig,
+					customHeaders: data.customHeaders.reduce(
+						(acc, { key, value }) => ({
+							...acc,
+							[key]: value,
+						}),
+						{},
+					),
+				}
+			: baseConfig
+
+	return {
+		...omit(data, ['authMode', 'token', 'basicUser', 'basicPassword', 'customHeaders']),
+		stumpOPDS: data.kind === 'stump' ? data.stumpOPDS : false,
+		config,
+	}
+}

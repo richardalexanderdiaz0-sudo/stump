@@ -5,6 +5,7 @@ import { memo } from 'react'
 import { Easing, Pressable, View } from 'react-native'
 import { easeGradient } from 'react-native-easing-gradient'
 
+import { formatSeriesPosition } from '~/lib/bookUtils'
 import { COLORS } from '~/lib/constants'
 import { useListItemSize } from '~/lib/hooks'
 
@@ -15,6 +16,9 @@ import { Text } from '../ui'
 const fragment = graphql(`
 	fragment OnDeckBookItem on Media {
 		id
+		metadata {
+			number
+		}
 		resolvedName
 		thumbnail {
 			url
@@ -29,6 +33,7 @@ const fragment = graphql(`
 		}
 		seriesPosition
 		series {
+			resolvedName
 			mediaCount
 		}
 	}
@@ -63,6 +68,14 @@ function OnDeckBookItem({ book }: Props) {
 
 	const { url: uri, metadata: placeholderData } = data.thumbnail
 
+	const seriesPosition = formatSeriesPosition(
+		Number(data.metadata?.number) || data.seriesPosition,
+		data.series.mediaCount,
+		{
+			seriesName: data.series.resolvedName,
+		},
+	)
+
 	return (
 		<Pressable onPress={() => router.navigate(`/server/${serverID}/books/${data.id}`)}>
 			{({ pressed }) => (
@@ -96,7 +109,7 @@ function OnDeckBookItem({ book }: Props) {
 							{data.resolvedName}
 						</Text>
 
-						{data.seriesPosition != null && (
+						{seriesPosition != null && (
 							<Text
 								className="flex-1 flex-wrap text-sm font-medium tablet:text-base"
 								style={{
@@ -108,7 +121,7 @@ function OnDeckBookItem({ book }: Props) {
 								}}
 								numberOfLines={0}
 							>
-								Book {data.seriesPosition} of {data.series?.mediaCount ?? '?'}
+								{seriesPosition}
 							</Text>
 						)}
 					</View>

@@ -6,15 +6,14 @@ import { z } from 'zod'
  * Stores information about books that have been downloaded for offline reading
  */
 export const downloadedFiles = sqliteTable('downloaded_files', {
-	id: text('id').primaryKey(), // Book ID from Stump server
-	filename: text('filename').notNull(), // Local filename (e.g., bookID.epub)
-	uri: text('uri').notNull(), // Local file URI
-	serverId: text('server_id').notNull(), // Server the book was downloaded from
-	size: integer('size'), // File size in bytes
+	id: text('id').primaryKey(),
+	filename: text('filename').notNull(), // e.g., bookID.epub
+	uri: text('uri').notNull(), // relative, not absolute path
+	serverId: text('server_id').notNull(),
+	size: integer('size'), // bytes
 	downloadedAt: integer('downloaded_at', { mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date()),
-	// Book metadata for offline display
 	bookName: text('book_name'),
 	bookDescription: text('book_description'),
 	bookMetadata: text('book_metadata', { mode: 'json' }),
@@ -22,7 +21,7 @@ export const downloadedFiles = sqliteTable('downloaded_files', {
 	pages: integer('pages').default(-1), // Number of pages (for comic books)
 	// TODO: Store for PDF, too?
 	toc: text('toc', { mode: 'json' }), // Table of contents for EPUB books
-	thumbnailPath: text('thumbnail_path'),
+	thumbnailPath: text('thumbnail_path'), // relative, not absolute path
 	thumbnailMeta: text('thumbnail_meta', { mode: 'json' }),
 })
 
@@ -31,10 +30,10 @@ export const downloadedFiles = sqliteTable('downloaded_files', {
  * Stores minimal series information for offline display
  */
 export const seriesRefs = sqliteTable('series_refs', {
-	id: text('id').primaryKey(), // Series ID from Stump server
-	serverId: text('server_id').notNull(), // Server the series belongs to
+	id: text('id').primaryKey(),
+	serverId: text('server_id').notNull(),
 	name: text('name').notNull(),
-	libraryId: text('library_id'), // Reference to library table
+	libraryId: text('library_id'),
 })
 
 /**
@@ -42,8 +41,8 @@ export const seriesRefs = sqliteTable('series_refs', {
  * Stores minimal library information for offline display
  */
 export const libraryRefs = sqliteTable('library_refs', {
-	id: text('id').primaryKey(), // Library ID from Stump server
-	serverId: text('server_id').notNull(), // Server the library belongs to
+	id: text('id').primaryKey(),
+	serverId: text('server_id').notNull(),
 	name: text('name').notNull(),
 })
 
@@ -121,4 +120,82 @@ export const imageMeta = z.object({
 		}),
 	),
 	thumbhash: z.string().nullish(),
+})
+
+/**
+ * Bookmarks table for offline reading
+ */
+export const bookmarks = sqliteTable('bookmarks', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	bookId: text('book_id')
+		.notNull()
+		.references(() => downloadedFiles.id, { onDelete: 'cascade' }),
+	serverId: text('server_id').notNull(),
+	epubcfi: text('epubcfi'),
+	href: text('href').notNull(),
+	chapterTitle: text('chapter_title'),
+	locations: text('locations', { mode: 'json' }),
+	previewContent: text('preview_content'),
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	syncStatus: text('sync_status').notNull().default(syncStatus.enum.UNSYNCED),
+	// Note: Null unitl synced to server
+	serverBookmarkId: text('server_bookmark_id'),
+	// Note: Soft delete for sync purposes
+	deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+})
+
+export type Bookmark = typeof bookmarks.$inferSelect
+export type NewBookmark = typeof bookmarks.$inferInsert
+
+export const bookmarkLocations = z.object({
+	fragments: z.array(z.string()).nullish(),
+	position: z.number().nullish(),
+	progression: z.number().nullish(),
+	totalProgression: z.number().nullish(),
+	cssSelector: z.string().nullish(),
+	partialCfi: z.string().nullish(),
+})
+
+export const annotations = sqliteTable('annotations', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	bookId: text('book_id')
+		.notNull()
+		.references(() => downloadedFiles.id, { onDelete: 'cascade' }),
+	serverId: text('server_id').notNull(), // Server the book belongs to
+	locator: text('locator', { mode: 'json' }).notNull(), // Full ReadiumLocator JSON
+	annotationText: text('annotation_text'), // Optional note text
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
+	syncStatus: text('sync_status').notNull().default(syncStatus.enum.UNSYNCED),
+	// Note: Null unitl synced to server
+	serverAnnotationId: text('server_annotation_id'),
+	// Note: Soft delete for sync purposes
+	deletedAt: integer('deleted_at', { mode: 'timestamp' }),
+})
+
+export type AnnotationRecord = typeof annotations.$inferSelect
+export type NewAnnotationRecord = typeof annotations.$inferInsert
+
+export const annotationLocator = z.object({
+	chapterTitle: z.string().nullish(),
+	href: z.string(),
+	title: z.string().nullish(),
+	locations: bookmarkLocations.nullish(),
+	text: z
+		.object({
+			after: z.string().nullish(),
+			before: z.string().nullish(),
+			highlight: z.string().nullish(),
+		})
+		.nullish(),
+	type: z.string().nullish(),
 })

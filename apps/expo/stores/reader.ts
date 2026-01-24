@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { useActiveServerSafe } from '~/components/activeServer'
 import { ImageReaderBookRef } from '~/components/book/reader/image/context'
+import { ColumnCount, ImageFilter, TextAlignment } from '~/modules/readium'
 
 import { ZustandMMKVStorage } from './store'
 
@@ -27,7 +28,22 @@ export type BookPreferences = IBookPreferences & {
 	tapSidesToNavigate: boolean
 	footerControls: FooterControls
 	trackElapsedTime: boolean
+	// Everything below here is epub-specific
 	allowPublisherStyles?: boolean
+	pageMargins?: number
+	columnCount?: ColumnCount
+	imageFilter?: ImageFilter
+	verticalText?: boolean
+	textAlign?: TextAlignment
+	typeScale?: number
+	fontWeight?: number
+	paragraphIndent?: number
+	paragraphSpacing?: number
+	wordSpacing?: number
+	letterSpacing?: number
+	hyphens?: boolean
+	ligatures?: boolean
+	textNormalization?: boolean
 }
 export type GlobalSettings = Omit<BookPreferences, 'serverID'>
 
@@ -65,11 +81,12 @@ export type ReaderStore = {
 export const DEFAULT_BOOK_PREFERENCES = {
 	fontSize: 13,
 	lineHeight: 1.5,
+	// brightness will be unused unless for android we change to getBrightnessAsync() to separate system vs book brightness
 	brightness: 1,
 	readingMode: ReadingMode.Paged,
 	readingDirection: ReadingDirection.Ltr,
 	imageScaling: {
-		scaleToFit: ReadingImageScaleFit.Height,
+		scaleToFit: ReadingImageScaleFit.Auto,
 	},
 	doublePageBehavior: 'off',
 	secondPageSeparate: false,
@@ -79,6 +96,10 @@ export const DEFAULT_BOOK_PREFERENCES = {
 	cachePolicy: 'memory-disk',
 	footerControls: 'images',
 	allowPublisherStyles: true,
+	pageMargins: 1.0,
+	columnCount: 'auto',
+	textAlign: 'justify',
+	typeScale: 1.0,
 } satisfies GlobalSettings
 
 export const useReaderStore = create<ReaderStore>()(
@@ -213,6 +234,7 @@ export const useBookTimer = (id: string, params: UseBookTimerParams = defaultPar
 	)
 
 	const resolvedTimerRef = useRef(resolvedTimer)
+	// eslint-disable-next-line react-hooks/purity
 	const startDateRef = useRef(Date.now())
 	const [isRunning, setIsRunning] = useState(true)
 

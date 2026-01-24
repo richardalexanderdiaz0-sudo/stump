@@ -1,6 +1,6 @@
 import { FlashList } from '@shopify/flash-list'
 import { useSDK } from '@stump/client'
-import { OPDSFeed } from '@stump/sdk'
+import { OPDSFeed, resolveUrl } from '@stump/sdk'
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from 'react-native'
@@ -76,34 +76,39 @@ export default function PublicationFeed({ feed, onRefresh, isRefreshing }: Props
 
 	const publications = data?.pages.flatMap((page) => page.publications) || feed.publications
 
+	const renderItem = useCallback(
+		({ item: publication }: { item: (typeof publications)[number] }) => {
+			const thumbnailURL = getPublicationThumbnailURL(publication, sdk.rootURL)
+			const selfURL = publication.links?.find((link) => link.rel === 'self')?.href
+
+			if (!thumbnailURL) return null
+
+			return (
+				<View className="w-full items-center">
+					<GridImageItem
+						uri={thumbnailURL}
+						title={publication.metadata.title}
+						href={{
+							pathname: '/opds/[id]/publication',
+							params: {
+								id: serverID,
+								url: selfURL ? resolveUrl(selfURL, sdk.rootURL) : undefined,
+							},
+						}}
+					/>
+				</View>
+			)
+		},
+		[serverID, sdk.rootURL],
+	)
+
 	if (!publications.length) return null
 
 	return (
 		<SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
 			<FlashList
 				data={publications}
-				renderItem={({ item: publication }) => {
-					const thumbnailURL = getPublicationThumbnailURL(publication)
-					const selfURL = publication.links?.find((link) => link.rel === 'self')?.href
-
-					if (!thumbnailURL) return null
-
-					return (
-						<View className="w-full items-center">
-							<GridImageItem
-								uri={thumbnailURL}
-								title={publication.metadata.title}
-								href={{
-									pathname: '/opds/[id]/publication',
-									params: {
-										id: serverID,
-										url: selfURL,
-									},
-								}}
-							/>
-						</View>
-					)
-				}}
+				renderItem={renderItem}
 				contentContainerStyle={{
 					paddingVertical: 16,
 					paddingHorizontal: paddingHorizontal,

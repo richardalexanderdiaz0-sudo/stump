@@ -14,12 +14,12 @@ import { stripHtml } from 'string-strip-html'
 import { useActiveServer, useStumpServer } from '~/components/activeServer'
 import { BookMetaLink } from '~/components/book'
 import { BookActionMenu } from '~/components/book/overview'
-import { InfoRow, InfoSection, InfoStat } from '~/components/book/overview'
-import LongValue from '~/components/book/overview/longValue/LongValue'
+import { InfoRow, InfoStat, LongValue } from '~/components/book/overview'
 import { ThumbnailImage } from '~/components/image'
 import RefreshControl from '~/components/RefreshControl'
-import { Button, Heading, Text } from '~/components/ui'
+import { Button, CardList, Heading, Text } from '~/components/ui'
 import { Icon } from '~/components/ui/icon'
+import { formatSeriesPosition } from '~/lib/bookUtils'
 import { formatBytes, parseGraphQLDecimal } from '~/lib/format'
 import { useDownload, useIsBookDownloaded } from '~/lib/hooks'
 import { cn } from '~/lib/utils'
@@ -116,6 +116,9 @@ const query = graphql(`
 					thumbhash
 				}
 			}
+			ebook {
+				toc
+			}
 		}
 	}
 `)
@@ -173,6 +176,7 @@ export default function Screen() {
 			bookName: book.resolvedName,
 			readProgress: book.readProgress,
 			thumbnailMeta: book.thumbnail.metadata || undefined,
+			toc: book.ebook?.toc,
 		})
 	}, [isDownloaded, downloadBook, book, isDownloading])
 
@@ -214,11 +218,15 @@ export default function Screen() {
 	const characters = book.metadata?.characters?.join(', ')
 
 	const seriesName = book.metadata?.series || book.series.resolvedName
-	const seriesPosition = Number(book.metadata?.number) || book.seriesPosition
+	const seriesPosition = formatSeriesPosition(
+		(Number(book.metadata?.number) || book.seriesPosition) ?? null,
+		book.series.mediaCount,
+		{
+			seriesName,
+		},
+	)
 
 	const seriesVolume = book.metadata?.volume
-
-	const noMetadata = !description && !seriesName && !genres && !characters
 
 	const publisher = book.metadata?.publisher
 	const writers = book.metadata?.writers?.join(', ')
@@ -353,12 +361,8 @@ export default function Screen() {
 							{book.resolvedName}
 						</Heading>
 
-						{seriesName && seriesPosition != null && (
-							<Text className="text-center text-base text-foreground-muted">
-								{seriesPosition}
-								{seriesPosition > book.series.mediaCount ? null : ` of ${book.series.mediaCount} `}
-								in {seriesName}
-							</Text>
+						{seriesPosition != null && (
+							<Text className="text-center text-base text-foreground-muted">{seriesPosition}</Text>
 						)}
 					</View>
 
@@ -401,7 +405,7 @@ export default function Screen() {
 					{progression && (
 						<View className="flex flex-row justify-around">
 							{progression.page && <InfoStat label="Page" value={progression.page.toString()} />}
-							{renderEpubLocator(progression)}
+							{!progression.page && renderEpubLocator(progression)}
 							{renderPercentage(progression)}
 							{renderReadTime(progression)}
 						</View>
@@ -419,104 +423,51 @@ export default function Screen() {
 						</View>
 					)}
 
-					<InfoSection
-						label="Information"
-						rows={[
-							<InfoRow key="identifier" label="Identifier" value={book.id} />,
-							...(book.metadata?.language
-								? [<InfoRow key="language" label="Language" value={book.metadata.language} />]
-								: []),
-							<InfoRow key="pages" label="Pages" value={pages.toString()} />,
-							<InfoRow key="kind" label="Kind" value={book.extension.toUpperCase()} />,
-							...(formattedSize ? [<InfoRow key="size" label="Size" value={formattedSize} />] : []),
-						]}
-					/>
+					<CardList label="Information">
+						<InfoRow label="Identifier" value={book.id} />
+						{book.metadata?.language && <InfoRow label="Language" value={book.metadata.language} />}
+						<InfoRow label="Pages" value={pages.toString()} />
+						<InfoRow label="Kind" value={book.extension.toUpperCase()} />
+						{formattedSize && <InfoRow label="Size" value={formattedSize} />}
+					</CardList>
 
 					{!noExternalIdentifiers && (
-						<InfoSection
-							label="External Identifiers"
-							rows={[
-								...(identifierAmazon
-									? [<InfoRow key="identifierAmazon" label="Amazon" value={identifierAmazon} />]
-									: []),
-								...(identifierCalibre
-									? [<InfoRow key="identifierCalibre" label="Calibre" value={identifierCalibre} />]
-									: []),
-								...(identifierGoogle
-									? [<InfoRow key="identifierGoogle" label="Google" value={identifierGoogle} />]
-									: []),
-								...(identifierIsbn
-									? [<InfoRow key="identifierIsbn" label="ISBN" value={identifierIsbn} />]
-									: []),
-								...(identifierMobiAsin
-									? [
-											<InfoRow
-												key="identifierMobiAsin"
-												label="Mobi ASIN"
-												value={identifierMobiAsin}
-											/>,
-										]
-									: []),
-							]}
-						/>
+						<CardList label="External Identifiers">
+							{identifierAmazon && <InfoRow label="Amazon" value={identifierAmazon} />}
+							{identifierCalibre && <InfoRow label="Calibre" value={identifierCalibre} />}
+							{identifierGoogle && <InfoRow label="Google" value={identifierGoogle} />}
+							{identifierIsbn && <InfoRow label="ISBN" value={identifierIsbn} />}
+							{identifierMobiAsin && <InfoRow label="Mobi ASIN" value={identifierMobiAsin} />}
+							{identifierUuid && <InfoRow label="UUID" value={identifierUuid} />}
+						</CardList>
 					)}
 
-					<InfoSection
-						label="Metadata"
-						rows={[
-							...(noMetadata
-								? [<InfoRow key="noMetadata" label="No metadata available" value="" />]
-								: []),
-							...(description
-								? [
-										<LongValue
-											key="description"
-											label="Description"
-											value={stripHtml(description).result}
-										/>,
-									]
-								: []),
-							...(seriesName ? [<InfoRow key="series" label="Series" value={seriesName} />] : []),
-							...(seriesPosition
-								? [
-										<InfoRow
-											key="seriesPosition"
-											label={seriesName ? 'Position' : 'Series Position'}
-											value={seriesPosition.toString()}
-										/>,
-									]
-								: []),
-							...(seriesVolume
-								? [<InfoRow key="seriesVolume" label="Volume" value={seriesVolume.toString()} />]
-								: []),
-							// TODO: Separate into separate section, maybe merge with links?
-							...(genres ? [<InfoRow key="genres" label="Genres" value={genres} />] : []),
-							...(characters
-								? [<InfoRow key="characters" label="Characters" value={characters} />]
-								: []),
-						]}
-					/>
+					<CardList label="Metadata" listEmptyStyle={{ message: 'No metadata available' }}>
+						{description && <LongValue label="Description" value={stripHtml(description).result} />}
+						{seriesName && <InfoRow label="Series" value={seriesName} />}
+						{seriesPosition && (
+							<InfoRow
+								label={seriesName ? 'Position' : 'Series Position'}
+								value={seriesPosition.toString()}
+							/>
+						)}
+						{seriesVolume && (
+							<InfoRow key="seriesVolume" label="Volume" value={seriesVolume.toString()} />
+						)}
+						{/* TODO: Separate into separate section, maybe merge with links? */}
+						{genres && <InfoRow label="Genres" value={genres} />}
+						{characters && <InfoRow label="Characters" value={characters} />}
+					</CardList>
 
 					{!noAcknowledgements && (
-						<InfoSection
-							label="Acknowledgements"
-							rows={[
-								...(publisher
-									? [<InfoRow key="publisher" label="Publisher" value={publisher} />]
-									: []),
-								...(writers ? [<InfoRow key="writers" label="Writers" value={writers} />] : []),
-								...(colorists
-									? [<InfoRow key="colorists" label="Colorists" value={colorists} />]
-									: []),
-								...(inkers ? [<InfoRow key="inkers" label="Inkers" value={inkers} />] : []),
-								...(letterers
-									? [<InfoRow key="letterers" label="Letterers" value={letterers} />]
-									: []),
-								...(coverArtists
-									? [<InfoRow key="coverArtists" label="Cover Artists" value={coverArtists} />]
-									: []),
-							]}
-						/>
+						<CardList label="Acknowledgements">
+							{publisher && <InfoRow label="Publisher" value={publisher} />}
+							{writers && <InfoRow label="Writers" value={writers} />}
+							{colorists && <InfoRow label="Colorists" value={colorists} />}
+							{inkers && <InfoRow label="Inkers" value={inkers} />}
+							{letterers && <InfoRow label="Letterers" value={letterers} />}
+							{coverArtists && <InfoRow label="Cover Artists" value={coverArtists} />}
+						</CardList>
 					)}
 
 					{links.length > 0 && (

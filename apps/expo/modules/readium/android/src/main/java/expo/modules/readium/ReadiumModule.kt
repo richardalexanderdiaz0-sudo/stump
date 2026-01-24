@@ -14,8 +14,10 @@ import org.readium.r2.shared.publication.Link
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.ExperimentalReadiumApi
 import android.util.Log
+import org.readium.r2.navigator.preferences.ColumnCount
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.ImageFilter
+import org.readium.r2.navigator.preferences.TextAlign
 import org.readium.r2.shared.InternalReadiumApi
 import org.readium.r2.shared.util.getOrElse
 
@@ -65,13 +67,11 @@ class ReadiumModule : Module() {
     }
 
     AsyncFunction("goForward") { view: EPUBView ->
-      val navigator = view.navigator ?: return@AsyncFunction
-      navigator.goForward(animated = false)
+      view.goForward()
     }
 
     AsyncFunction("goBackward") { view: EPUBView ->
-      val navigator = view.navigator ?: return@AsyncFunction
-      navigator.goBackward(animated = false)
+      view.goBackward()
     }
 
     AsyncFunction("goToLocation") { view: EPUBView, locatorMap: Map<String, Any> ->
@@ -82,7 +82,7 @@ class ReadiumModule : Module() {
     }
 
     View(EPUBView::class) {
-      Events("onLocatorChange", "onPageChange", "onBookLoaded", "onLayoutChange", "onMiddleTouch", "onSelection", "onDoubleTouch", "onError")
+      Events("onLocatorChange", "onPageChange", "onBookLoaded", "onLayoutChange", "onMiddleTouch", "onSelection", "onAnnotationTap", "onHighlightRequest", "onNoteRequest", "onEditHighlight", "onDeleteHighlight", "onDoubleTouch", "onError", "onReachedEnd")
 
       Prop("bookId") { view: EPUBView, prop: String ->
         if (view.bookService == null) {
@@ -92,13 +92,11 @@ class ReadiumModule : Module() {
       }
 
       AsyncFunction("goForward") { view: EPUBView ->
-        val navigator = view.navigator ?: return@AsyncFunction
-        navigator.goForward(animated = false)
+        view.goForward()
       }
 
       AsyncFunction("goBackward") { view: EPUBView ->
-        val navigator = view.navigator ?: return@AsyncFunction
-        navigator.goBackward(animated = false)
+        view.goBackward()
       }
 
       AsyncFunction("goToLocation") { view: EPUBView, locatorMap: Map<String, Any> ->
@@ -115,6 +113,14 @@ class ReadiumModule : Module() {
       AsyncFunction("destroy") { view: EPUBView ->
         Log.d("ReadiumModule", "destroy called - cleaning up EPUBView resources")
         view.destroyNavigator()
+      }
+      
+      AsyncFunction("getSelection") Coroutine { view: EPUBView ->
+        view.getSelection()
+      }
+      
+      AsyncFunction("clearSelection") { view: EPUBView ->
+        view.clearSelection()
       }
 
       Prop("locator") { view: EPUBView, prop: Map<String, Any?>? ->
@@ -141,6 +147,19 @@ class ReadiumModule : Module() {
         view.pendingProps.url = prop
       }
 
+      Prop("decorations") { view: EPUBView, prop: List<Map<String, Any?>> ->
+        val decorations = prop.mapNotNull { decorationMap ->
+          val id = decorationMap["id"] as? String ?: return@mapNotNull null
+          val colorHex = decorationMap["color"] as? String ?: return@mapNotNull null
+          @Suppress("UNCHECKED_CAST")
+          val locatorMap = decorationMap["locator"] as? Map<String, Any?> ?: return@mapNotNull null
+          val locator = Locator.fromJSON(JSONObject(locatorMap)) ?: return@mapNotNull null
+          val color = try { Color.parseColor(colorHex) } catch (e: Exception) { return@mapNotNull null }
+          DecorationItem(id = id, color = color, locator = locator)
+        }
+        view.pendingProps.decorations = decorations
+      }
+
       Prop("colors") { view: EPUBView, prop: Map<String, String> ->
         val foregroundHex = prop["foreground"] ?: "#000000"
         val backgroundHex = prop["background"] ?: "#FFFFFF"
@@ -161,7 +180,10 @@ class ReadiumModule : Module() {
       }
 
       Prop("readingDirection") { view: EPUBView, prop: String ->
-        view.pendingProps.readingDirection = prop
+        view.pendingProps.readingProgression = when (prop) {
+          "rtl" -> org.readium.r2.navigator.preferences.ReadingProgression.RTL
+          else -> org.readium.r2.navigator.preferences.ReadingProgression.LTR
+        }
       }
 
       Prop("publisherStyles") { view: EPUBView, prop: Boolean ->
@@ -174,6 +196,69 @@ class ReadiumModule : Module() {
           "invert" -> ImageFilter.INVERT
           else -> null
         }
+      }
+
+      Prop("pageMargins") { view: EPUBView, prop: Double? ->
+        view.pendingProps.pageMargins = prop
+      }
+
+      Prop("columnCount") { view: EPUBView, prop: String? ->
+        view.pendingProps.columnCount = when (prop) {
+          "1" -> ColumnCount.ONE
+          "2" -> ColumnCount.TWO
+          else -> ColumnCount.AUTO
+        }
+      }
+
+      Prop("textAlign") { view: EPUBView, prop: String? ->
+        view.pendingProps.textAlign = when (prop) {
+          "start" -> TextAlign.START
+          "left" -> TextAlign.LEFT
+          "right" -> TextAlign.RIGHT
+          "center" -> TextAlign.CENTER
+          "justify" -> TextAlign.JUSTIFY
+          else -> null
+        }
+      }
+
+      Prop("typeScale") { view: EPUBView, prop: Double? ->
+        view.pendingProps.typeScale = prop
+      }
+
+      Prop("paragraphIndent") { view: EPUBView, prop: Double? ->
+        view.pendingProps.paragraphIndent = prop
+      }
+
+      Prop("paragraphSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.paragraphSpacing = prop
+      }
+
+      Prop("wordSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.wordSpacing = prop
+      }
+
+      Prop("letterSpacing") { view: EPUBView, prop: Double? ->
+        view.pendingProps.letterSpacing = prop
+      }
+
+      Prop("hyphens") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.hyphens = prop
+      }
+
+      Prop("ligatures") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.ligatures = prop
+      }
+
+      Prop("fontWeight") { view: EPUBView, prop: Double? ->
+        view.pendingProps.fontWeight = prop
+      }
+
+      Prop("textNormalization") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.textNormalization = prop
+      }
+
+      Prop("verticalText") { view: EPUBView, prop: Boolean? ->
+        view.pendingProps.verticalText = prop
       }
 
       OnViewDidUpdateProps { view: EPUBView ->

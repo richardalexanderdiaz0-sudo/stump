@@ -5,11 +5,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { and, count, eq } from 'drizzle-orm'
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite'
 import * as FileSystem from 'expo-file-system/legacy'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
+import { toast } from 'sonner-native'
 
 import { useActiveServerSafe } from '~/components/activeServer'
 import { useDownloadsState } from '~/components/downloads/store'
-import { db, downloadedFiles, DownloadRepository } from '~/db'
+import { db, downloadedFiles, DownloadRepository, readProgress } from '~/db'
 import { booksDirectory, bookThumbnailPath, ensureDirectoryExists } from '~/lib/filesystem'
 import { useSavedServerStore } from '~/stores/savedServer'
 
@@ -324,6 +325,68 @@ export function useDownload({ serverId }: UseDownloadParams = {}) {
 		},
 	})
 
+	const markAsComplete = useCallback(
+		async (bookId: string, totalPages?: number | null) => {
+			const effectiveServerId = serverID
+			if (!effectiveServerId) {
+				throw new Error('No active server available')
+			}
+
+			try {
+				const existingProgress = await db
+					.select()
+					.from(readProgress)
+					.where(eq(readProgress.bookId, bookId))
+					.get()
+
+				if (existingProgress) {
+					await db
+						.update(readProgress)
+						.set({
+							percentage: '1.0',
+							page: totalPages ?? existingProgress.page,
+							lastModified: new Date(),
+						})
+						.where(eq(readProgress.bookId, bookId))
+				} else {
+					await db.insert(readProgress).values({
+						bookId,
+						serverId: effectiveServerId,
+						percentage: '1.0',
+						page: totalPages ?? undefined,
+						lastModified: new Date(),
+					})
+				}
+
+				queryClient.invalidateQueries({ queryKey: downloadKeys.server(effectiveServerId) })
+			} catch (error) {
+				Sentry.captureException(error)
+				toast.error('Failed to mark as complete')
+				throw error
+			}
+		},
+		[serverID, queryClient],
+	)
+
+	const clearProgress = useCallback(
+		async (bookId: string) => {
+			const effectiveServerId = serverID
+			if (!effectiveServerId) {
+				throw new Error('No active server available')
+			}
+
+			try {
+				await db.delete(readProgress).where(eq(readProgress.bookId, bookId))
+				queryClient.invalidateQueries({ queryKey: downloadKeys.server(effectiveServerId) })
+			} catch (error) {
+				Sentry.captureException(error)
+				toast.error('Failed to clear progress')
+				throw error
+			}
+		},
+		[serverID, queryClient],
+	)
+
 	return {
 		downloadBook: downloadMutation.mutateAsync,
 		deleteBook: (bookId: string, serverId?: string) =>
@@ -332,6 +395,8 @@ export function useDownload({ serverId }: UseDownloadParams = {}) {
 			deleteManyMutation.mutateAsync({ bookIds, serverId }),
 		deleteAllDownloads: deleteAllDownloadsMutation.mutateAsync,
 		deleteServerDownloads: deleteServerDownloadsMutation.mutateAsync,
+		markAsComplete,
+		clearProgress,
 		isDownloading: downloadMutation.isPending,
 		isDeleting: deleteMutation.isPending,
 		downloadError: downloadMutation.error,

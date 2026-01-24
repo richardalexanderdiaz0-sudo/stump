@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, path::PathBuf};
+use std::{
+	collections::VecDeque,
+	path::{Path, PathBuf},
+};
 
 use async_graphql::SimpleObject;
 use models::{
@@ -492,7 +495,7 @@ impl JobExt for LibraryScanJob {
 					.config
 					.as_ref()
 					.and_then(|o| (!o.is_collection_based()).then_some(1));
-				if path_buf == PathBuf::from(&self.path) {
+				if path_buf.as_path() == Path::new(&self.path) {
 					// The exception is when the series "is" the libray (i.e. the root of the library contains
 					// books). This is kind of an anti-pattern wrt collection-priority, but it needs to be handled
 					// in order to avoid the scanner re-scanning the entire library...
@@ -626,16 +629,19 @@ impl JobExt for LibraryScanJob {
 						logs: new_logs,
 						..
 					} = handle_restored_media(ctx, &series_id, ids).await;
+
 					ctx.send_batch(vec![
 						JobProgress::msg("Restored media entities").into_worker_send(),
 						CoreEvent::CreatedOrUpdatedManyMedia(
 							event::CreatedOrUpdatedManyMedia {
 								count: updated_media,
 								series_id,
+								library_id: self.id.clone(),
 							},
 						)
 						.into_worker_send(),
 					]);
+
 					output.updated_media += updated_media;
 					logs.extend(new_logs);
 				},
@@ -646,16 +652,19 @@ impl JobExt for LibraryScanJob {
 						logs: new_logs,
 						..
 					} = handle_missing_media(ctx, &series_id, paths).await;
+
 					ctx.send_batch(vec![
 						JobProgress::msg("Handled missing media").into_worker_send(),
 						CoreEvent::CreatedOrUpdatedManyMedia(
 							event::CreatedOrUpdatedManyMedia {
 								count: updated_media,
 								series_id,
+								library_id: self.id.clone(),
 							},
 						)
 						.into_worker_send(),
 					]);
+
 					output.updated_media += updated_media;
 					logs.extend(new_logs);
 				},
@@ -681,12 +690,14 @@ impl JobExt for LibraryScanJob {
 						paths,
 					)
 					.await?;
+
 					ctx.send_batch(vec![
 						JobProgress::msg("Created new media").into_worker_send(),
 						CoreEvent::CreatedOrUpdatedManyMedia(
 							event::CreatedOrUpdatedManyMedia {
 								count: created_media,
 								series_id,
+								library_id: self.id.clone(),
 							},
 						)
 						.into_worker_send(),
@@ -717,12 +728,14 @@ impl JobExt for LibraryScanJob {
 						params,
 					)
 					.await?;
+
 					ctx.send_batch(vec![
 						JobProgress::msg("Visited all media").into_worker_send(),
 						CoreEvent::CreatedOrUpdatedManyMedia(
 							event::CreatedOrUpdatedManyMedia {
 								count: updated_media,
 								series_id,
+								library_id: self.id.clone(),
 							},
 						)
 						.into_worker_send(),

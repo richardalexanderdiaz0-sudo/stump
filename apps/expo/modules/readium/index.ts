@@ -1,5 +1,7 @@
-import { ReadiumLocator as StumpReadiumLocator } from '@stump/graphql'
+import { ReadiumLocation, ReadiumLocator as StumpReadiumLocator } from '@stump/graphql'
 import omit from 'lodash/omit'
+
+import { BookmarkRef } from '~/components/book/reader/image/context'
 
 import { PDFLocator, ReadiumLink, ReadiumLocator } from './src'
 import ReadiumModule from './src/ReadiumModule'
@@ -8,6 +10,52 @@ export { BookLoadedEvent as PDFBookLoadedEvent, PDFView, PDFViewRef } from './sr
 export * from './src/Readium.types'
 export { default } from './src/ReadiumModule'
 export { default as ReadiumView } from './src/ReadiumView'
+
+type StumpBookmark = {
+	id: string
+	epubcfi?: string | null
+	mediaId: string
+	previewContent?: string | null
+	locator?: {
+		chapterTitle?: string | null
+		href: string
+		locations?: ReadiumLocation | null
+	} | null
+	createdAt: string
+}
+
+const safeNumber = (value: unknown): number | null => {
+	if (value == null) return null
+	const num = Number(value)
+	return Number.isNaN(num) ? null : num
+}
+
+const normalizeLocations = (
+	locations: ReadiumLocation | null | undefined,
+): BookmarkRef['locations'] => {
+	if (!locations) return null
+	return {
+		fragments: locations.fragments,
+		position: locations.position,
+		progression: safeNumber(locations.progression),
+		totalProgression: safeNumber(locations.totalProgression),
+		cssSelector: locations.cssSelector,
+		partialCfi: locations.partialCfi,
+	}
+}
+
+export function intoBookmarkRef(bookmark: StumpBookmark): BookmarkRef {
+	return {
+		id: bookmark.id,
+		epubcfi: bookmark.epubcfi,
+		href: bookmark.locator?.href ?? '',
+		chapterTitle: bookmark.locator?.chapterTitle ?? '',
+		locations: normalizeLocations(bookmark.locator?.locations),
+		previewContent: bookmark.previewContent,
+		mediaId: bookmark.mediaId,
+		createdAt: new Date(bookmark.createdAt),
+	}
+}
 
 export async function locateLink(
 	bookId: string,
@@ -64,4 +112,21 @@ export function intoPDFReadiumLocator(page: number): PDFLocator {
 		href: 'publication.pdf',
 		type: 'application/pdf',
 	}
+}
+
+export function isLastReadiumLocator(
+	locator: ReadiumLocator,
+	positions: ReadiumLocator[],
+): boolean {
+	if (positions.length === 0) return false
+	const totalPositions = positions.length
+	const totalProgression = locator.locations?.totalProgression
+	const position = locator.locations?.position
+
+	return (
+		position != null &&
+		totalProgression != null &&
+		position >= totalPositions &&
+		totalProgression >= 0.95
+	)
 }

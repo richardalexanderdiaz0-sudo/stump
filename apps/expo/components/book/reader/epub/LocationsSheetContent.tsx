@@ -1,7 +1,6 @@
-import { useRouter } from 'expo-router'
 import { useRef, useState } from 'react'
-import { View } from 'react-native'
-import { Pressable, ScrollView } from 'react-native-gesture-handler'
+import { Pressable, useWindowDimensions, View } from 'react-native'
+import { ScrollView } from 'react-native-gesture-handler'
 import PagerView from 'react-native-pager-view'
 import { stripHtml } from 'string-strip-html'
 
@@ -10,9 +9,18 @@ import { Heading, Text } from '~/components/ui'
 import { cn } from '~/lib/utils'
 import { usePreferencesStore } from '~/stores'
 import { type TableOfContentsItem, useEpubLocationStore } from '~/stores/epub'
+import { useEpubSheetStore } from '~/stores/epubSheet'
+
+import AnnotationsAndBookmarks from './AnnotationsAndBookmarks'
 
 export default function LocationsSheetContent() {
 	const [activePage, setActivePage] = useState(0)
+	const { height: windowHeight } = useWindowDimensions()
+
+	const pagerHeight =
+		windowHeight -
+		72 - // py-6 + text(ish)
+		60 // tabs
 
 	const ref = useRef<PagerView>(null)
 
@@ -75,7 +83,7 @@ export default function LocationsSheetContent() {
 
 			<PagerView
 				ref={ref}
-				style={{ flex: 1 }}
+				style={{ flex: 1, height: pagerHeight }}
 				initialPage={0}
 				onPageSelected={(e) => setActivePage(e.nativeEvent.position)}
 			>
@@ -128,7 +136,9 @@ export default function LocationsSheetContent() {
 					key="2"
 				>
 					<ScrollView className="w-full" contentContainerStyle={{ paddingBottom: 16 }}>
-						{toc?.map((item) => <TableOfContentsListItem key={item.label} item={item} />)}
+						{toc?.map((item) => (
+							<TableOfContentsListItem key={item.label} item={item} />
+						))}
 					</ScrollView>
 				</View>
 				<View
@@ -138,7 +148,7 @@ export default function LocationsSheetContent() {
 					}}
 					key="3"
 				>
-					<Text>Annotations not supported yet</Text>
+					<AnnotationsAndBookmarks />
 				</View>
 			</PagerView>
 		</View>
@@ -147,31 +157,26 @@ export default function LocationsSheetContent() {
 
 // TODO: Calculate page?
 const TableOfContentsListItem = ({ item }: { item: TableOfContentsItem }) => {
-	const router = useRouter()
 	const actions = useEpubLocationStore((store) => store.actions)
 	const currentChapter = useEpubLocationStore((store) => store.currentChapter)
+	const closeSheet = useEpubSheetStore((state) => state.closeSheet)
 
 	const handlePress = async () => {
 		// E.g.: "text/part0010.html#9H5K0-..." -> ["text/part0010.html", "9H5K0-..."]
 		const [hrefWithoutFragment, fragment] = item.content.split('#')
 
 		await actions?.goToLocation({
-			href: hrefWithoutFragment,
+			href: hrefWithoutFragment || item.content,
 			type: 'application/xhtml+xml',
 			chapterTitle: item.label,
 			locations: fragment
 				? {
 						fragments: [fragment],
 					}
-				: undefined,
+				: {},
 		})
 
-		// This pushes the dismiss to the end of the call stack to try and
-		// avoid a crash which happens on Android if the dismiss occurs too
-		// closely after the readium navigation change
-		setTimeout(() => {
-			router.dismiss()
-		})
+		closeSheet('locations')
 	}
 
 	return (
