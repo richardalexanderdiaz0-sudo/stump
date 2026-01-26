@@ -3,6 +3,7 @@ import '~/global.css'
 import { DarkTheme, DefaultTheme, Theme, ThemeProvider } from '@react-navigation/native'
 import { PortalHost } from '@rn-primitives/portal'
 import * as Sentry from '@sentry/react-native'
+import { getColor, to } from 'colorjs.io/fn'
 import dayjs from 'dayjs'
 import duration from 'dayjs/plugin/duration'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -29,7 +30,8 @@ import { setAndroidNavigationBar } from '~/lib/android-navigation-bar'
 import { NAV_THEME, useColors } from '~/lib/constants'
 import { useColorScheme } from '~/lib/useColorScheme'
 import { usePreferencesStore } from '~/stores'
-import { useHideStatusBar } from '~/stores/reader'
+import { useEpubLocationStore, useEpubTheme } from '~/stores/epub'
+import { useHideSystemBars, useReaderStore } from '~/stores/reader'
 
 dayjs.extend(relativeTime)
 dayjs.extend(duration)
@@ -68,7 +70,7 @@ export default function RootLayout() {
 	const { error } = useMigrations(db, migrations)
 
 	const animation = React.useRef<LottieView>(null)
-	const shouldHideStatusBar = useHideStatusBar()
+	const { hideStatusBar, hideNavigationBar } = useHideSystemBars()
 	const hasMounted = React.useRef(false)
 
 	const colors = useColors()
@@ -81,6 +83,9 @@ export default function RootLayout() {
 			disableDismissGesture: state.disableDismissGesture,
 		}),
 	)
+	const isReading = useReaderStore((state) => state.isReading)
+	const isReadingEbook = useEpubLocationStore((state) => !!state.book)
+	const { colors: epubThemeColors } = useEpubTheme()
 
 	useIsomorphicLayoutEffect(() => {
 		if (hasMounted.current) {
@@ -121,6 +126,21 @@ export default function RootLayout() {
 		return () => subscription.remove()
 	}, [])
 
+	let isDarkEpubTheme: boolean = isDarkColorScheme
+	if (epubThemeColors?.background && isReadingEbook) {
+		const backgroundColor = getColor(epubThemeColors?.background)
+		const foregroundColor = getColor(epubThemeColors?.foreground)
+
+		const backgroundLightness = to(backgroundColor, 'oklch').coords[0]
+		const foregroundLightness = to(foregroundColor, 'oklch').coords[0]
+
+		// Choosing based on relative difference rather than e.g. absolute lightness < 0.5 seems
+		// to look much better for edge cases near the boundry
+		isDarkEpubTheme = foregroundLightness > backgroundLightness
+	}
+
+	const isDarkBackground = isReadingEbook ? isDarkEpubTheme : isDarkColorScheme || isReading
+
 	if (!isColorSchemeLoaded || !isAnimationReady) {
 		return <View className="flex-1 bg-background" />
 	}
@@ -155,7 +175,10 @@ export default function RootLayout() {
 				{performanceMonitor && <PerformanceMonitor style={{ top: insets.top || 12 }} />}
 				<BottomSheet.Provider>
 					<KeyboardProvider>
-						<SystemBars style={isDarkColorScheme ? 'light' : 'dark'} hidden={shouldHideStatusBar} />
+						<SystemBars
+							style={isDarkBackground ? 'light' : 'dark'}
+							hidden={{ statusBar: hideStatusBar, navigationBar: hideNavigationBar }}
+						/>
 						<Stack
 							// https://github.com/expo/expo/issues/15244 ?
 							// screenOptions={{
@@ -182,7 +205,7 @@ export default function RootLayout() {
 									headerShown: false,
 									title: '',
 									animation: animationEnabled ? 'default' : 'none',
-									autoHideHomeIndicator: shouldHideStatusBar,
+									autoHideHomeIndicator: hideNavigationBar,
 									contentStyle: {
 										backgroundColor: colors.background.DEFAULT,
 									},
@@ -202,7 +225,7 @@ export default function RootLayout() {
 									headerShown: false,
 									title: '',
 									animation: animationEnabled ? 'default' : 'none',
-									autoHideHomeIndicator: shouldHideStatusBar,
+									autoHideHomeIndicator: hideNavigationBar,
 									presentation:
 										disableDismissGesture && Platform.OS === 'ios' ? 'fullScreenModal' : undefined,
 									contentStyle: {
