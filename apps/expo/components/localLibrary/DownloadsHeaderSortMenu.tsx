@@ -4,6 +4,9 @@ import {
 	ArrowDownLeft,
 	ArrowUpRight,
 	Clock,
+	CloudDownload,
+	FolderInput,
+	Library,
 	LibraryBig,
 	ListFilter,
 } from 'lucide-react-native'
@@ -24,13 +27,15 @@ import {
 import { useColors } from '~/lib/constants'
 
 import { Icon } from '../ui/icon'
-import { DownloadSortOption, useDownloadsState } from './store'
+import { DownloadSortOption, DownloadSourceFilter, useDownloadsState } from './store'
 
 export default function DownloadsHeaderSortMenu() {
 	const [isOpen, setIsOpen] = useState(false)
 
 	const sortConfig = useDownloadsState((state) => state.sort)
 	const setSortConfig = useDownloadsState((state) => state.setSort)
+	const sourceFilter = useDownloadsState((state) => state.sourceFilter)
+	const setSourceFilter = useDownloadsState((state) => state.setSourceFilter)
 
 	const insets = useSafeAreaInsets()
 
@@ -89,6 +94,28 @@ export default function DownloadsHeaderSortMenu() {
 		[setSortConfig, sortConfig],
 	)
 
+	const getFilterLabel = (filter: DownloadSourceFilter) => {
+		switch (filter) {
+			case 'all':
+				return 'All Books'
+			case 'server':
+				return 'Downloaded'
+			case 'imported':
+				return 'Imported'
+		}
+	}
+
+	const getFilterIcon = (filter: DownloadSourceFilter) => {
+		switch (filter) {
+			case 'all':
+				return { ios: 'books.vertical' as const, android: Library }
+			case 'server':
+				return { ios: 'arrow.down.circle' as const, android: CloudDownload }
+			case 'imported':
+				return { ios: 'folder.badge.plus' as const, android: FolderInput }
+		}
+	}
+
 	// TODO: Refactor to make Android align with iOS subtitle design, I am too lazy right now
 	const Component = Platform.select({
 		ios: (
@@ -136,7 +163,7 @@ export default function DownloadsHeaderSortMenu() {
 							key="sortByRecent"
 							onSelect={() => handleSelection('ADDED_AT')}
 						>
-							<NativeDropdownMenu.ItemTitle>Date Downloaded</NativeDropdownMenu.ItemTitle>
+							<NativeDropdownMenu.ItemTitle>Date Added</NativeDropdownMenu.ItemTitle>
 							<NativeDropdownMenu.ItemIcon ios={{ name: 'clock' }} />
 							{renderSubtitle('ADDED_AT')}
 						</NativeDropdownMenu.CheckboxItem>
@@ -150,6 +177,21 @@ export default function DownloadsHeaderSortMenu() {
 							<NativeDropdownMenu.ItemIcon ios={{ name: 'books.vertical.fill' }} />
 							{renderSubtitle('SERIES')}
 						</NativeDropdownMenu.CheckboxItem>
+					</NativeDropdownMenu.Group>
+
+					<NativeDropdownMenu.Group>
+						{(['all', 'server', 'imported'] as const).map((filter) => (
+							<NativeDropdownMenu.CheckboxItem
+								key={`filter-${filter}`}
+								value={sourceFilter === filter}
+								onSelect={() => setSourceFilter(filter)}
+							>
+								<NativeDropdownMenu.ItemTitle>
+									{getFilterLabel(filter)}
+								</NativeDropdownMenu.ItemTitle>
+								<NativeDropdownMenu.ItemIcon ios={{ name: getFilterIcon(filter).ios }} />
+							</NativeDropdownMenu.CheckboxItem>
+						))}
 					</NativeDropdownMenu.Group>
 				</NativeDropdownMenu.Content>
 			</NativeDropdownMenu.Root>
@@ -200,7 +242,7 @@ export default function DownloadsHeaderSortMenu() {
 						className="text-foreground"
 						closeOnPress={false}
 					>
-						<Text className="text-lg">Date Downloaded</Text>
+						<Text className="text-lg">Date Added</Text>
 						<Icon as={Clock} size={20} className="ml-auto text-foreground-muted" />
 					</DropdownMenuCheckboxItem>
 
@@ -243,6 +285,25 @@ export default function DownloadsHeaderSortMenu() {
 						<Text className="text-lg">Descending</Text>
 						<Icon as={ArrowDownLeft} size={20} className="ml-auto text-foreground-muted" />
 					</DropdownMenuCheckboxItem>
+
+					<DropdownMenuSeparator variant="group" />
+
+					{(['all', 'server', 'imported'] as const).map((filter) => (
+						<DropdownMenuCheckboxItem
+							key={`filter-${filter}`}
+							checked={sourceFilter === filter}
+							onCheckedChange={() => setSourceFilter(filter)}
+							className="text-foreground"
+							closeOnPress={false}
+						>
+							<Text className="text-lg">{getFilterLabel(filter)}</Text>
+							<Icon
+								as={getFilterIcon(filter).android}
+								size={20}
+								className="ml-auto text-foreground-muted"
+							/>
+						</DropdownMenuCheckboxItem>
+					))}
 				</DropdownMenuContent>
 			</DropdownMenu>
 		),
