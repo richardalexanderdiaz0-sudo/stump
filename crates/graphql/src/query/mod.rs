@@ -1,4 +1,5 @@
 mod api_key;
+mod author;
 mod book_club;
 mod config;
 mod email_device;
@@ -20,6 +21,7 @@ mod tag;
 pub(crate) mod user;
 
 use api_key::APIKeyQuery;
+use author::AuthorQuery;
 use book_club::BookClubQuery;
 use config::ConfigQuery;
 use email_device::EmailDeviceQuery;
@@ -43,6 +45,7 @@ use crate::query::job::JobQuery;
 #[derive(async_graphql::MergedObject, Default)]
 pub struct Query(
 	APIKeyQuery,
+	AuthorQuery,
 	BookClubQuery,
 	EmailerQuery,
 	EmailDeviceQuery,

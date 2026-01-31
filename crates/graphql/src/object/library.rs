@@ -7,7 +7,7 @@ use async_graphql::{
 use models::{
 	entity::{
 		library, library_config, library_exclusion, library_scan_record, library_tag,
-		media, series, tag, user,
+		media, media_metadata, series, tag, user,
 	},
 	shared::{
 		alphabet::{AvailableAlphabet, EntityLetter},
@@ -27,7 +27,9 @@ use crate::{
 	object::{library_scan_record::LibraryScanRecord, media::Media},
 };
 
-use super::{library_config::LibraryConfig, series::Series, tag::Tag, user::User};
+use super::{
+	author::Author, library_config::LibraryConfig, series::Series, tag::Tag, user::User,
+};
 
 #[derive(Clone, Debug, SimpleObject)]
 #[graphql(complex)]
@@ -44,6 +46,60 @@ impl From<library::Model> for Library {
 
 #[ComplexObject]
 impl Library {
+	async fn authors(&self, ctx: &Context<'_>) -> Result<Vec<Author>> {
+		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
+
+		let writers: Vec<String> = media_metadata::Entity::find()
+			.select_only()
+			.column(media_metadata::Column::Writers)
+			.distinct()
+			.join_rev(
+				sea_orm::JoinType::InnerJoin,
+				media::Entity::belongs_to(media_metadata::Entity)
+					.from(media::Column::Id)
+					.to(media_metadata::Column::MediaId)
+					.into(),
+			)
+			.filter(
+				media::Column::SeriesId.in_subquery(
+					Query::select()
+						.column(series::Column::Id)
+						.from(series::Entity)
+						.and_where(series::Column::LibraryId.eq(self.model.id.clone()))
+						.to_owned(),
+				),
+			)
+			.filter(media_metadata::Column::Writers.is_not_null())
+			.into_tuple()
+			.all(conn)
+			.await?;
+
+		let unique_names: std::collections::BTreeSet<String> = writers
+			.into_iter()
+			.flat_map(|w| {
+				w.split(',')
+					.map(|s| s.trim().to_string())
+					.filter(|s| !s.is_empty())
+					.collect::<Vec<String>>()
+			})
+			.collect();
+
+		let library_id = Some(self.model.id.clone());
+		let authors = unique_names
+			.into_iter()
+			.map(|name| Author {
+				name,
+				// Note: This is a little fuzzy tbh and feels counterintuitive at a glance. My
+				// rationale here is that in the context of a library, an author has no role. We only
+				// care about surfacing all authors here.
+				role: None,
+				library_id: library_id.clone(),
+			})
+			.collect();
+
+		Ok(authors)
+	}
+
 	async fn config(&self, ctx: &Context<'_>) -> Result<LibraryConfig> {
 		let conn = ctx.data::<CoreContext>()?.conn.as_ref();
 
