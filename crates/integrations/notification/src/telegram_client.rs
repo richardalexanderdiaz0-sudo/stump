@@ -1,8 +1,8 @@
-use crate::Notifier;
+use crate::NotificationClient;
 
 use super::{
-	error::{NotifierError, NotifierResult},
-	NotifierEvent,
+	error::{NotificationError, NotificationResult},
+	NotificationEvent,
 };
 
 pub struct TelegramClient {
@@ -23,13 +23,15 @@ impl TelegramClient {
 }
 
 #[async_trait::async_trait]
-impl Notifier for TelegramClient {
-	fn payload_from_event(_event: NotifierEvent) -> NotifierResult<serde_json::Value> {
-		Err(NotifierError::Unimplemented(
+impl NotificationClient for TelegramClient {
+	fn payload_from_event(
+		_event: NotificationEvent,
+	) -> NotificationResult<serde_json::Value> {
+		Err(NotificationError::Unimplemented(
 			"Telegram does not support request bodies".to_string(),
 		))
 	}
-	async fn send_message(&self, event: NotifierEvent) -> NotifierResult<()> {
+	async fn send_message(&self, event: NotificationEvent) -> NotificationResult<()> {
 		let token = self.token.clone();
 		let chat_id = self.chat_id.clone();
 		let message = event.into_message();
@@ -43,7 +45,7 @@ impl Notifier for TelegramClient {
 				.text()
 				.await
 				.unwrap_or_else(|_| "sendMessage failed".to_string());
-			Err(NotifierError::RequestFailed(errmsg))
+			Err(NotificationError::RequestFailed(errmsg))
 		} else {
 			Ok(())
 		}
@@ -64,7 +66,7 @@ mod tests {
 	#[tokio::test]
 	async fn test_send_message() {
 		let client = get_debug_client();
-		let event = NotifierEvent::ScanCompleted {
+		let event = NotificationEvent::ScanCompleted {
 			books_added: 50,
 			library_name: String::from("test_library"),
 		};
@@ -75,7 +77,7 @@ mod tests {
 	#[tokio::test]
 	async fn test_send_message_failed() {
 		let client = TelegramClient::new("bad".to_string(), "bad".to_string());
-		let event = NotifierEvent::ScanCompleted {
+		let event = NotificationEvent::ScanCompleted {
 			books_added: 50,
 			library_name: String::from("test_library"),
 		};

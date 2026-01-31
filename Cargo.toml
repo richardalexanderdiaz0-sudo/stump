@@ -6,9 +6,11 @@ members = [
   "core",
   "crates/*",
   "crates/macros/*",
+  "crates/integrations/*",
 ]
 exclude = [
   "crates/macros/Cargo.toml",
+  "crates/integrations/Cargo.toml",
 ]
 
 [workspace.package]

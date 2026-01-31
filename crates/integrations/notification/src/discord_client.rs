@@ -1,8 +1,8 @@
 use serde_json::json;
 
 use super::{
-	error::{NotifierError, NotifierResult},
-	Notifier, NotifierEvent, FAVICON_URL, NOTIFIER_ID,
+	error::{NotificationError, NotificationResult},
+	NotificationClient, NotificationEvent, FAVICON_URL, NOTIFIER_ID,
 };
 
 pub struct DiscordClient {
@@ -23,10 +23,12 @@ impl DiscordClient {
 //https://core.telegram.org/bots/api#message
 
 #[async_trait::async_trait]
-impl Notifier for DiscordClient {
-	fn payload_from_event(event: NotifierEvent) -> NotifierResult<serde_json::Value> {
+impl NotificationClient for DiscordClient {
+	fn payload_from_event(
+		event: NotificationEvent,
+	) -> NotificationResult<serde_json::Value> {
 		let payload = match event {
-			NotifierEvent::ScanCompleted {
+			NotificationEvent::ScanCompleted {
 				books_added,
 				library_name,
 			} => json!({
@@ -42,7 +44,7 @@ impl Notifier for DiscordClient {
 		Ok(payload)
 	}
 
-	async fn send_message(&self, event: NotifierEvent) -> NotifierResult<()> {
+	async fn send_message(&self, event: NotificationEvent) -> NotificationResult<()> {
 		let body = Self::payload_from_event(event)?;
 		let response = self
 			.client
@@ -55,7 +57,7 @@ impl Notifier for DiscordClient {
 				.text()
 				.await
 				.unwrap_or_else(|_| "sendMessage failed".to_string());
-			Err(NotifierError::RequestFailed(errmsg))
+			Err(NotificationError::RequestFailed(errmsg))
 		} else {
 			Ok(())
 		}
@@ -78,7 +80,7 @@ mod tests {
 	#[tokio::test]
 	async fn test_send_message() {
 		let client = get_debug_client();
-		let event = NotifierEvent::ScanCompleted {
+		let event = NotificationEvent::ScanCompleted {
 			books_added: 50,
 			library_name: String::from("test_library"),
 		};
@@ -88,7 +90,7 @@ mod tests {
 
 	#[test]
 	fn test_scan_completed() {
-		let event = NotifierEvent::ScanCompleted {
+		let event = NotificationEvent::ScanCompleted {
 			books_added: 5,
 			library_name: String::from("test_library"),
 		};

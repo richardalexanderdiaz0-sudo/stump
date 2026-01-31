@@ -1,7 +1,7 @@
-pub type NotifierResult<T> = Result<T, NotifierError>;
+pub type NotificationResult<T> = Result<T, NotificationError>;
 
 #[derive(Debug, thiserror::Error)]
-pub enum NotifierError {
+pub enum NotificationError {
 	#[error("Request failed with error: {0}")]
 	ReqwestError(#[from] reqwest::Error),
 	#[error("{0}")]

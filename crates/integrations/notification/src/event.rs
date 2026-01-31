@@ -1,14 +1,14 @@
-pub enum NotifierEvent {
+pub enum NotificationEvent {
 	ScanCompleted {
 		books_added: u64,
 		library_name: String,
 	},
 }
 
-impl NotifierEvent {
+impl NotificationEvent {
 	pub fn into_message(self) -> String {
 		match self {
-			NotifierEvent::ScanCompleted {
+			NotificationEvent::ScanCompleted {
 				books_added,
 				library_name,
 			} => {
