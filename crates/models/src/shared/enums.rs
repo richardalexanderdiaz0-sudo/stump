@@ -5,6 +5,13 @@ use strum::{Display, EnumString};
 
 // TODO: Consider not using screaming case?
 
+/// The role of an author in relation to a work or series
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Enum)]
+pub enum AuthorRole {
+	Primary,
+	CoAuthor,
+}
+
 /// The different roles a user may have for a role-based access control system scoped
 /// to a specific entity
 #[derive(
@@ -301,6 +308,36 @@ pub enum LibraryViewMode {
 	#[default]
 	Series,
 	Books,
+}
+
+/// The type of content a library contains
+#[derive(
+	Eq,
+	Copy,
+	Hash,
+	Debug,
+	Default,
+	Clone,
+	EnumIter,
+	PartialEq,
+	Serialize,
+	Deserialize,
+	DeriveActiveEnum,
+	Enum,
+)]
+#[sea_orm(
+	rs_type = "String",
+	rename_all = "SCREAMING_SNAKE_CASE",
+	db_type = "String(StringLen::None)"
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LibraryType {
+	Comic,
+	Manga,
+	Book,
+	LightNovel,
+	#[default]
+	Mixed,
 }
 
 #[derive(
