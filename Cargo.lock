@@ -4657,6 +4657,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "metadata_integrations"
+version = "0.0.8"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+]
+
+[[package]]
 name = "migrations"
 version = "0.0.0"
 dependencies = [
