@@ -1,3 +1,4 @@
+import { useSDKSafe } from '@stump/client'
 import { useQuery } from '@tanstack/react-query'
 import setProperty from 'lodash/set'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -25,6 +26,7 @@ import {
 	convertNativeToc,
 	findTocItemByHref,
 	OnBookmarkCallback,
+	resolveTocItemByPosition,
 	useEpubLocationStore,
 	useEpubTheme,
 } from '~/stores/epub'
@@ -109,7 +111,7 @@ export default function ReadiumReader({
 	onDeleteAnnotation,
 	...ctx
 }: Props) {
-	const { downloadBook } = useDownload({ serverId: ctx.serverId })
+	const { downloadImmediate } = useDownload({ serverId: ctx.serverId })
 
 	const [localUri, setLocalUri] = useState<string | null>(() => ctx.offlineUri || null)
 
@@ -200,7 +202,6 @@ export default function ReadiumReader({
 		cleanup: store.onUnload,
 		storeActions: store.storeActions,
 		storeHeaders: store.storeHeaders,
-		toc: store.toc,
 		storeBookmarks: store.storeBookmarks,
 		storeOnBookmark: store.storeOnBookmark,
 		storeOnDeleteBookmark: store.storeOnDeleteBookmark,
@@ -219,12 +220,17 @@ export default function ReadiumReader({
 		positions: store.positions,
 	}))
 
+	const sdkCtx = useSDKSafe()
+
 	const { isLoading: isDownloading } = useQuery({
 		queryKey: ['readium-reader-offline-uri', book.id, ctx.serverId],
-		enabled: !localUri,
+		enabled: !localUri && !!sdkCtx?.sdk,
 		queryFn: async () => {
-			const result = await downloadBook({
+			if (!sdkCtx?.sdk) throw new Error('SDK not available')
+
+			const result = await downloadImmediate({
 				...book,
+				url: sdkCtx.sdk.media.downloadURL(book.id),
 				bookName: book.name,
 				libraryId: book.library?.id,
 				libraryName: book.library?.name,
@@ -235,14 +241,9 @@ export default function ReadiumReader({
 				thumbnailMeta: book.thumbnail.metadata || undefined,
 			})
 
-			if (result) {
-				await verifyFileReadable(result)
-				setLocalUri(result)
-				return result
-			} else {
-				console.error('Failed to download book')
-				return null
-			}
+			await verifyFileReadable(result)
+			setLocalUri(result)
+			return result
 		},
 	})
 
@@ -376,7 +377,8 @@ export default function ReadiumReader({
 			}
 
 			if (!locator.chapterTitle) {
-				const tocItem = findTocItemByHref(store.toc, locator.href)
+				const tocItem =
+					resolveTocItemByPosition(locator.locations?.position) || findTocItemByHref(locator.href)
 				if (tocItem) {
 					locator.chapterTitle = tocItem.label
 				}

@@ -29,7 +29,6 @@ export default function ReadiumHeader() {
 	const chapterTitle = useEpubLocationStore(
 		(state) => state.currentChapter || state.book?.name || state.embeddedMetadata?.title,
 	)
-
 	const { colors } = useEpubTheme()
 
 	const insets = useSafeAreaInsets()
