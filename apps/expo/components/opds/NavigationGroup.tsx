@@ -8,6 +8,7 @@ import { ListEmptyMessage, Text } from '../ui'
 import FeedSelfURL from './FeedSelfURL'
 import NavigationLink from './NavigationLink'
 import { FeedComponentOptions } from './types'
+import { useResolveURL } from './utils'
 
 type Props = {
 	group: OPDSFeedGroup
@@ -19,6 +20,8 @@ export default function NavigationGroup({
 }: Props) {
 	const selfURL = links.find((link) => link.rel === 'self')?.href
 
+	const resolveUrl = useResolveURL()
+
 	if (!navigation.length && !renderEmpty) return null
 
 	return (
@@ -28,7 +31,7 @@ export default function NavigationGroup({
 					{metadata.title || 'Browse'}
 				</Text>
 
-				{selfURL && <FeedSelfURL url={selfURL} />}
+				{selfURL && <FeedSelfURL url={resolveUrl(selfURL)} />}
 			</View>
 
 			{navigation.map((link) => (
