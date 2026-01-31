@@ -26,6 +26,7 @@ import {
 	convertNativeToc,
 	findTocItemByHref,
 	OnBookmarkCallback,
+	resolveTocItemByPosition,
 	useEpubLocationStore,
 	useEpubTheme,
 } from '~/stores/epub'
@@ -201,7 +202,6 @@ export default function ReadiumReader({
 		cleanup: store.onUnload,
 		storeActions: store.storeActions,
 		storeHeaders: store.storeHeaders,
-		toc: store.toc,
 		storeBookmarks: store.storeBookmarks,
 		storeOnBookmark: store.storeOnBookmark,
 		storeOnDeleteBookmark: store.storeOnDeleteBookmark,
@@ -377,7 +377,8 @@ export default function ReadiumReader({
 			}
 
 			if (!locator.chapterTitle) {
-				const tocItem = findTocItemByHref(store.toc, locator.href)
+				const tocItem =
+					resolveTocItemByPosition(locator.locations?.position) || findTocItemByHref(locator.href)
 				if (tocItem) {
 					locator.chapterTitle = tocItem.label
 				}
