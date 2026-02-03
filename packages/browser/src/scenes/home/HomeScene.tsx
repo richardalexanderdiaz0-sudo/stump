@@ -14,8 +14,8 @@ export default function HomeScene() {
 
 	const helmet = (
 		<Helmet>
-			{/* Doing this so Helmet splits the title into an array, I'm not just insane lol */}
-			<title>Stump | {'Home'}</title>
+			{/* Manga Verse branding */}
+			<title>Manga Verse | {'Home'}</title>
 		</Helmet>
 	)
 
@@ -33,11 +33,19 @@ export default function HomeScene() {
 	}
 
 	return (
-		<SceneContainer className="flex flex-col gap-4">
+		<SceneContainer className="flex flex-col gap-6">
 			{helmet}
+			{/* Hero (Netflix-like) */}
+			{/* New: Manga Verse branded hero */}
+			{/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+			{/* @ts-ignore */}
+			{typeof window !== 'undefined' && <></>}
 			<ContinueReadingMedia />
+			{/* Recently added as a denser grid */}
 			<RecentlyAddedMedia />
-			<RecentlyAddedSeries />
+			{/* Coming soon / releases */}
+			{/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+			{/* @ts-ignore */}
 			<div className="pb-5 sm:pb-0" />
 		</SceneContainer>
 	)

@@ -36,6 +36,16 @@ export type APIError =
 	| { code: 'Unknown'; details: string }
 	| { code: 'Redirect'; details: string }
 
+// Manga Verse — frontend helpers for known tags used by Ruiworks
+export const SUPPORTED_MANGA_TAGS = [
+	'Yaoi',
+	'BL',
+	'+18',
+	'Gore',
+	'Acción',
+] as const
+export type SupportedMangaTag = (typeof SUPPORTED_MANGA_TAGS)[number]
+
 export interface Pageable<T> {
 	// The target data being returned.
 	data: T

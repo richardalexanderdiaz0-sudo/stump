@@ -17,9 +17,11 @@ export default function ControlsOverlay() {
 
 	const showBottomToolbar = readingMode === 'paged'
 
+	const [zenMode, setZenMode] = useState(false)
+
 	return (
 		<Fragment>
-			<ReaderHeader />
+			{!zenMode && <ReaderHeader />}
 
 			<motion.div
 				className="absolute inset-0 z-10 flex-1"
@@ -28,13 +30,17 @@ export default function ControlsOverlay() {
 						'linear-gradient(0deg, hsla(0, 0%, 0%, 0.95), hsla(0, 0%, 0%, 0.80), hsla(0, 0%, 0%, 0.5), hsla(0, 0%, 0%, 0.5), hsla(0, 0%, 0%, 0.5), hsla(0, 0%, 0%, 0.5), hsla(0, 0%, 0%, 0.80), hsla(0, 0%, 0%, 0.95))',
 				}}
 				initial={false}
-				animate={showToolBar ? 'visible' : 'hidden'}
+				animate={showToolBar && !zenMode ? 'visible' : 'hidden'}
 				variants={transition}
 				transition={{ duration: 0.2, ease: 'easeInOut' }}
-				onClick={() => setSettings({ showToolBar: !showToolBar })}
+				// single tap toggles zen mode, double-click toggles the toolbar (legacy behaviour)
+				onClick={(e) => {
+					if (e.detail === 1) setZenMode((s) => !s)
+				}}
+				onDoubleClick={() => setSettings({ showToolBar: !showToolBar })}
 			/>
 
-			{showBottomToolbar && <ReaderFooter />}
+			{!zenMode && showBottomToolbar && <ReaderFooter />}
 		</Fragment>
 	)
 }

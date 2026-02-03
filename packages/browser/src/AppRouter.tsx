@@ -19,6 +19,8 @@ const ServerConnectionErrorScene = lazy(
 	() => import('./scenes/error/ServerConnectionErrorScene.tsx'),
 )
 const LoginOrClaimScene = lazy(() => import('./scenes/auth'))
+const LegalPage = lazy(() => import('./scenes/legal/LegalPage'))
+const CreateManga = lazy(() => import('./scenes/admin/studio/CreateManga'))
 
 export function AppRouter() {
 	const locale = useUserStore((store) => store.userPreferences?.locale)
@@ -50,8 +52,10 @@ export function AppRouter() {
 					<Route path="books/*" element={<BookRouter />} />
 					<Route path="book-clubs/*" element={<BookClubRouter />} />
 					<Route path="/smart-lists/*" element={<SmartListRouter />} />
-					<Route path="settings/*" element={<SettingsRouter />} />
-				</Route>
+				<Route path="settings/*" element={<SettingsRouter />} />
+				<Route path="admin/studio/create" element={<CreateManga />} />
+				<Route path="legal" element={<LegalPage />} />
+			</Route>
 
 				<Route path="/auth" element={<LoginOrClaimScene />} />
 				<Route path="/server-connection-error" element={<ServerConnectionErrorScene />} />

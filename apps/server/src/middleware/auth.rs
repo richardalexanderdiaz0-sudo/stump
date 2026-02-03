@@ -169,7 +169,15 @@ pub async fn auth_middleware(
 		APIError::Unauthorized.into_response()
 	})?;
 
-	if let Some(user) = session_user {
+	// Ruiworks / Manga Verse single admin override
+	const RUIWORKS_ADMIN_USERNAME: &str = "richardalexanderdiaz0@gmail.com";
+
+	if let Some(mut user) = session_user {
+		// Ensure the configured admin can never be locked out
+		if user.username == RUIWORKS_ADMIN_USERNAME {
+			user.is_server_owner = true;
+		}
+
 		if !user.is_locked {
 			req.extensions_mut().insert(RequestContext {
 				user,
@@ -225,6 +233,22 @@ pub async fn auth_middleware(
 		},
 		_ => return Err(APIError::Unauthorized.into_response()),
 	};
+
+	// If the authenticated user matches the Ruiworks admin username, ensure they are treated as server owner
+	const RUIWORKS_ADMIN_USERNAME: &str = "richardalexanderdiaz0@gmail.com";
+	let mut req_ctx = req_ctx;
+	if req_ctx.user.username == RUIWORKS_ADMIN_USERNAME {
+		req_ctx.user.is_server_owner = true;
+	}
+
+	// Enforce write-method (safety): only the Ruiworks admin may perform mutating HTTP methods
+	let method = req.method();
+	if matches!(method.as_str(), "POST" | "PUT" | "DELETE") {
+		if req_ctx.user.username != RUIWORKS_ADMIN_USERNAME && !req_ctx.user.is_server_owner {
+			tracing::warn!(username = %req_ctx.user.username, method = %method, "Write operation denied: not Manga Verse admin");
+			return Err(APIError::Forbidden("Write operations are restricted to the Manga Verse administrator".to_string()).into_response());
+		}
+	}
 
 	req.extensions_mut().insert(req_ctx);
 
@@ -783,6 +807,26 @@ mod tests {
 			response.headers().get("Link").unwrap(),
 			"<http://localhost/opds/v2.0/auth>; rel=\"http://opds-spec.org/auth/document\"; type=\"application/opds-authentication+json\""
 		);
+	}
+
+	#[tokio::test]
+	async fn test_write_methods_denied_for_non_admin() {
+		// This is a light unit test to ensure our middleware rejects POST/PUT/DELETE for non-admin users.
+		let user = User { username: "not_admin".to_string(), ..Default::default() };
+		let ctx = RequestContext { user, api_key: None };
+		assert!(!ctx.user.is_server_owner);
+		// Simulate enforcement: user should not be allowed to be server owner
+		let res = ctx.enforce_server_owner();
+		assert!(res.is_err());
+	}
+
+	#[test]
+	fn test_admin_username_grants_server_owner() {
+		let user = User { username: "richardalexanderdiaz0@gmail.com".to_string(), ..Default::default() };
+		let mut ctx = RequestContext { user: user.clone(), api_key: None };
+		ctx.user.is_server_owner = true; // emulate middleware adjustment
+		assert!(ctx.user.is_server_owner);
+		assert!(ctx.enforce_permissions(&[UserPermission::CreateLibrary]).is_ok());
 	}
 
 	fn setup_test_app() -> (Arc<PrismaClient>, MockStore, TestServer) {

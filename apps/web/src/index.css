@@ -1,0 +1,24 @@
+:root{
+  --mv-bg: #050505;
+  --mv-accent: #a855f7;
+  --mv-foreground: #e6e6e6;
+  --mv-muted: #9b9b9b;
+}
+
+html,body,#root{height:100%}
+body{
+  background:var(--mv-bg);
+  color:var(--mv-foreground);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* Small helpers that mirror Tailwind utilities for any non-Tailwind consumers */
+.rounded-xl{border-radius:0.75rem}
+.btn-mv{background:linear-gradient(90deg,var(--mv-accent),#7b2be6);color:white;padding:0.5rem 1rem;border-radius:0.75rem}
+
+/* Accent variables for CSS-in-JS or components that read CSS vars */
+.manga-verse-accent{color:var(--mv-accent)}
+
+/* Ensure images used in splash have good contrast */
+.splash{filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));max-width:10rem}

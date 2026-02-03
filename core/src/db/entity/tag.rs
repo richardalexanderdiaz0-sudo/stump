@@ -38,3 +38,18 @@ impl From<prisma::tag::Data> for Tag {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use serde_json::json;
+
+	#[test]
+	fn create_tags_accepts_special_names() {
+		let payload = json!({ "tags": ["Yaoi", "BL", "+18", "Gore", "Acción"] });
+		let parsed: CreateTags = serde_json::from_value(payload).expect("should deserialize CreateTags");
+		assert_eq!(parsed.tags.len(), 5);
+		assert!(parsed.tags.contains(&"+18".to_string()));
+		assert!(parsed.tags.contains(&"Acción".to_string()));
+	}
+}

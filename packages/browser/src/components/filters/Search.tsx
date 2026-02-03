@@ -54,7 +54,13 @@ export default function Search({
 
 	useEffect(() => {
 		if (debouncedValue !== undefined && shouldCall) {
-			onChange(debouncedValue)
+			// Convenience: treat #tag as tag:<name> for faster tag-based indexing
+			const normalized = debouncedValue.trim()
+			if (normalized.startsWith('#')) {
+				onChange(`tag:${normalized.slice(1).trim()}`)
+			} else {
+				onChange(debouncedValue)
+			}
 		}
 	}, [debouncedValue, onChange, shouldCall])
 

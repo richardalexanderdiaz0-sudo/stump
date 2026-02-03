@@ -11,6 +11,7 @@ import { useImageBaseReaderContext } from '../context'
 import ControlButton from './ControlButton'
 import SettingsDialog from './SettingsDialog'
 import TimerMenu from './TimerMenu'
+import ShareButton from '@/components/ShareButton'
 
 export default function ReaderHeader() {
 	const { book } = useImageBaseReaderContext()
@@ -54,9 +55,19 @@ export default function ReaderHeader() {
 						</ControlButton>
 					)}
 
-					<TimerMenu />
+				{/* Corazón+ (notificaciones) */}
+				<ControlButton onClick={() => alert('Notificado ❤️')}>❤+</ControlButton>
 
-					<SettingsDialog />
+				{/* Info */}
+				<ControlButton onClick={() => alert('Mostrar información del capítulo')}>i</ControlButton>
+
+				<TimerMenu />
+
+				<SettingsDialog />
+				{/* Share */}
+				{/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+				{/* @ts-ignore */}
+				<ShareButton />
 				</div>
 			</div>
 		</motion.nav>
